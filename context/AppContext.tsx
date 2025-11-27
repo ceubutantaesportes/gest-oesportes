@@ -475,13 +475,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Waitlist Promotion Logic
     let nextStudent = null;
+    
+    // Only check for next student if the CANCELLED student was CONFIRMED (opening a spot)
     if (enrollment.status === EnrollmentStatus.CONFIRMED) {
-        // Find students on waitlist
-        const waitlist = enrollments
-            .filter(e => e.classId === targetClass.id && e.status === EnrollmentStatus.WAITING_LIST && e.id !== enrollmentId);
+        // Find students on waitlist for THIS class
+        // Use current 'enrollments' state (which still has the removed one, so filter it out)
+        // Actually, we already removed it from state setter, but 'enrollments' const here is stale closure from render
+        const waitlist = enrollments.filter(e => 
+          e.classId === targetClass.id && 
+          e.status === EnrollmentStatus.WAITING_LIST && 
+          e.id !== enrollmentId // exclude self just in case
+        );
             
         if (waitlist.length > 0) {
-            const nextEnrollment = waitlist[0]; // First in line
+            const nextEnrollment = waitlist[0]; // Assumes first in array is first in line
             const user = users.find(u => u.id === nextEnrollment.studentId);
             if (user) {
                 nextStudent = user;
