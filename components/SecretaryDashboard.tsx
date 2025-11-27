@@ -8,8 +8,16 @@ type SecretaryView = 'MENU' | 'STUDENTS' | 'CLASSES' | 'VACANCIES' | 'WAITLIST' 
 
 const SecretaryDashboard: React.FC = () => {
   const { users, classes, enrollments, enrollStudent, cancelEnrollment, addUser } = useApp();
-  const [currentView, setCurrentView] = useState<SecretaryView>('MENU');
   
+  // Persist Current View in Local Storage
+  const [currentView, setCurrentView] = useState<SecretaryView>(() => {
+    return (localStorage.getItem('sec_dashboard_view') as SecretaryView) || 'MENU';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sec_dashboard_view', currentView);
+  }, [currentView]);
+
   // State for Student Management
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Users, BookOpen, AlertTriangle, ClipboardCheck, Calendar, Search, ArrowRight, CheckCircle, XCircle, Clock, PlusSquare, Eye, ArrowLeft, Mail, Phone, FileText, LayoutGrid, ListOrdered, ChevronRight, BarChart2, Bell, GraduationCap, Briefcase, UserCog, Save, X, Plus, Smartphone, Home, ShieldCheck, Activity, LayoutTemplate, AlertOctagon, Trash2, MapPin } from 'lucide-react';
@@ -11,7 +12,15 @@ type DashboardView = 'MENU' | 'OVERVIEW' | 'WAITLIST' | 'MODALITIES' | 'AUDIT' |
 
 const CoordinatorDashboard: React.FC = () => {
   const { classes, enrollments, attendance, users, updateRequests, resolveUpdateRequest, updateUser, addUser, deleteUser, auditLogs, notifications, markNotificationAsRead, currentUser } = useApp();
-  const [currentView, setCurrentView] = useState<DashboardView>('MENU');
+  
+  // Persist Current View in Local Storage
+  const [currentView, setCurrentView] = useState<DashboardView>(() => {
+    return (localStorage.getItem('coord_dashboard_view') as DashboardView) || 'MENU';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('coord_dashboard_view', currentView);
+  }, [currentView]);
   
   // State for Class Detail View (Shared across views)
   const [viewingClassId, setViewingClassId] = useState<string | null>(null);

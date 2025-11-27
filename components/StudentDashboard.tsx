@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { EnrollmentStatus } from '../types';
 import { Calendar, Clock, MapPin, User as UserIcon, Filter, AlertCircle, CheckCircle, ArrowLeft, Info, Map } from 'lucide-react';
@@ -8,8 +8,18 @@ const StudentDashboard: React.FC = () => {
   const { classes, enrollments, currentUser } = useApp();
   const [filter, setFilter] = useState('');
   
-  // Use ID instead of object to ensure we always render with fresh data from context
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  // Persist selected class view in Local Storage
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(() => {
+    return localStorage.getItem('student_selected_class');
+  });
+
+  useEffect(() => {
+    if (selectedClassId) {
+        localStorage.setItem('student_selected_class', selectedClassId);
+    } else {
+        localStorage.removeItem('student_selected_class');
+    }
+  }, [selectedClassId]);
 
   const myEnrollments = enrollments.filter(e => e.studentId === currentUser?.id);
   
