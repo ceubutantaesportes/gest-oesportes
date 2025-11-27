@@ -6,8 +6,7 @@ import StudentDashboard from './components/StudentDashboard';
 import SecretaryDashboard from './components/SecretaryDashboard';
 import AnalystDashboard from './components/AnalystDashboard';
 import CoordinatorDashboard from './components/CoordinatorDashboard';
-import UserProfileModal from './components/UserProfileModal';
-import { Menu, LogOut, LayoutDashboard, User as UserIcon, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserCog, UserPlus, ArrowLeft, Calendar, FileText, Phone } from 'lucide-react';
+import { Menu, LogOut, LayoutDashboard, User as UserIcon, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, FileText, Phone, CheckCircle } from 'lucide-react';
 
 const LoginScreen: React.FC = () => {
   const { login, addUser, users } = useApp();
@@ -16,6 +15,7 @@ const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState(''); // New state for success message
   const [showPassword, setShowPassword] = useState(false);
   
   // Registration State
@@ -51,6 +51,7 @@ const LoginScreen: React.FC = () => {
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     const success = login(email, password);
     if (!success) {
       setError('E-mail ou senha inválidos.');
@@ -63,6 +64,17 @@ const LoginScreen: React.FC = () => {
     v = v.replace(/(\d{3})(\d)/, "$1.$2");
     v = v.replace(/(\d{3})(\d)/, "$1.$2");
     v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    return v;
+  };
+
+  const applyPhoneMask = (value: string) => {
+    let v = value.replace(/\D/g, ""); // Remove non-digits
+    v = v.slice(0, 11); // Limit to 11 digits
+    
+    // Apply formatting (XX) XXXXX-XXXX
+    v = v.replace(/^(\d{2})(\d)/g, "($1) $2"); 
+    v = v.replace(/(\d)(\d{4})$/, "$1-$2"); 
+    
     return v;
   };
 
@@ -105,8 +117,22 @@ const LoginScreen: React.FC = () => {
     };
 
     addUser(newUser);
-    // Auto login
-    login(regEmail, regPassword);
+    
+    // Reset Form
+    setRegName('');
+    setRegEmail('');
+    setRegCpf('');
+    setRegPhone('');
+    setRegBirthDate('');
+    setRegPassword('');
+    setRegConfirmPassword('');
+    setRegGuardianName('');
+    setRegGuardianCpf('');
+    setRegGuardianPhone('');
+
+    // Redirect to Login with Success Message
+    setIsRegistering(false);
+    setSuccessMsg('Cadastro realizado com sucesso! Faça login para entrar.');
   };
 
   // Helper to fill form for demo purposes
@@ -114,6 +140,7 @@ const LoginScreen: React.FC = () => {
     setEmail(roleEmail);
     setPassword('123456');
     setError('');
+    setSuccessMsg('');
   };
 
   if (isRegistering) {
@@ -191,7 +218,8 @@ const LoginScreen: React.FC = () => {
                                 type="text" 
                                 required
                                 value={regPhone}
-                                onChange={e => setRegPhone(e.target.value)}
+                                onChange={e => setRegPhone(applyPhoneMask(e.target.value))}
+                                maxLength={15}
                                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
                                 placeholder="(11) 99999-9999"
                             />
@@ -277,7 +305,8 @@ const LoginScreen: React.FC = () => {
                                     type="text" 
                                     required={isMinor}
                                     value={regGuardianPhone}
-                                    onChange={e => setRegGuardianPhone(e.target.value)}
+                                    onChange={e => setRegGuardianPhone(applyPhoneMask(e.target.value))}
+                                    maxLength={15}
                                     className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none bg-white text-gray-900 text-sm"
                                 />
                             </div>
@@ -307,6 +336,12 @@ const LoginScreen: React.FC = () => {
         </div>
         
         <form onSubmit={handleLoginSubmit} className="space-y-5">
+          {successMsg && (
+             <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm flex items-center border border-green-200 font-bold">
+                 <CheckCircle size={16} className="mr-2 flex-shrink-0" /> {successMsg}
+             </div>
+          )}
+          
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center border border-red-200 font-bold">
               <AlertCircle size={16} className="mr-2 flex-shrink-0" /> {error}
@@ -394,7 +429,6 @@ const LoginScreen: React.FC = () => {
 const DashboardLayout: React.FC = () => {
   const { currentUser, logout } = useApp();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const renderContent = () => {
     switch (currentUser?.role) {
@@ -444,13 +478,6 @@ const DashboardLayout: React.FC = () => {
             </div>
           </div>
           
-          <button 
-             onClick={() => setIsProfileOpen(true)}
-             className="w-full flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors mb-8 border border-slate-700"
-          >
-             <UserCog size={16} className="mr-2" /> Meu Perfil
-          </button>
-
           <nav className="space-y-2">
             <button className="w-full text-left px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium flex items-center">
               <LayoutDashboard size={16} className="mr-2" /> Dashboard
@@ -485,9 +512,6 @@ const DashboardLayout: React.FC = () => {
           </div>
         </div>
       </main>
-
-      {/* Profile Modal */}
-      <UserProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </div>
   );
 };
