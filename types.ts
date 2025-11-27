@@ -27,7 +27,8 @@ export enum RequestStatus {
 
 export enum RequestType {
   CREATE = 'CREATE',
-  UPDATE = 'UPDATE'
+  UPDATE = 'UPDATE',
+  ENROLLMENT_OVERRIDE = 'ENROLLMENT_OVERRIDE' // Nova solicitação para limite de vagas
 }
 
 export interface User {
@@ -94,12 +95,14 @@ export interface AttendanceRecord {
 
 export interface ClassUpdateRequest {
   id: string;
-  requestType: RequestType; // New field to distinguish Create vs Update
+  requestType: RequestType; // New field to distinguish Create vs Update vs Enrollment Override
   classId: string;
   classTitle: string;
-  analystId: string;
+  analystId: string; // Quem solicitou (pode ser secretaria neste caso)
   analystName: string;
-  requestedChanges: Partial<SportClass>;
+  requestedChanges: Partial<SportClass>; // Pode estar vazio no caso de Enrollment Override
+  studentId?: string; // Opcional: Apenas para Enrollment Override
+  studentName?: string; // Opcional: Apenas para Enrollment Override
   status: RequestStatus;
   createdAt: string;
 }

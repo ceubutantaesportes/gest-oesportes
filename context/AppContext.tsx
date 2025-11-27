@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, SportClass, Enrollment, AttendanceRecord, EnrollmentStatus, ClassUpdateRequest, RequestStatus, RequestType, AuditLog, Notification } from '../types';
+import { User, SportClass, Enrollment, AttendanceRecord, EnrollmentStatus, ClassUpdateRequest, RequestStatus, RequestType, AuditLog, Notification, UserRole } from '../types';
 import { MOCK_USERS, MOCK_CLASSES, MOCK_ENROLLMENTS, MOCK_ATTENDANCE, MOCK_REQUESTS, MOCK_AUDIT_LOGS, MOCK_NOTIFICATIONS } from '../constants';
 
 interface AppContextType {
@@ -18,8 +18,9 @@ interface AppContextType {
   
   // User Methods
   updateUser: (updatedUser: User) => void;
-  updateCurrentUserProfile: (data: Partial<User>) => void; // New method
+  updateCurrentUserProfile: (data: Partial<User>) => void;
   addUser: (newUser: User) => void;
+  deleteUser: (userId: string) => void; // New method
 
   // Class Methods
   addClass: (newClass: SportClass) => void;
@@ -168,6 +169,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     logAction('ADD_USER', `Cadastrou novo usuário: ${newUser.name} (${newUser.role})`);
   };
 
+  const deleteUser = (userId: string) => {
+    const userToRemove = users.find(u => u.id === userId);
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    logAction('DELETE_USER', `Excluiu usuário: ${userToRemove?.name || userId} (${userToRemove?.role})`);
+  };
+
   const addClass = (newClass: SportClass) => {
     setClasses(prev => [newClass, ...prev]);
     logAction('ADD_CLASS', `Criou a turma: ${newClass.title}`);
@@ -239,6 +246,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
       } else if (request.requestType === RequestType.CREATE) {
         setClasses(prev => [request.requestedChanges as SportClass, ...prev]);
+      } else if (request.requestType === RequestType.ENROLLMENT_OVERRIDE && request.studentId) {
+        // --- HANDLE ENROLLMENT OVERRIDE APPROVAL ---
+        // Creates the enrollment bypassing the check
+        const targetClass = classes.find(c => c.id === request.classId);
+        if (targetClass) {
+            const isFull = targetClass.enrolledCount >= targetClass.capacity;
+            const status = isFull ? EnrollmentStatus.WAITING_LIST : EnrollmentStatus.CONFIRMED;
+
+            const newEnrollment: Enrollment = {
+                id: Math.random().toString(36).substr(2, 9),
+                classId: targetClass.id,
+                studentId: request.studentId,
+                studentName: request.studentName || 'Aluno',
+                status,
+                date: new Date().toISOString().split('T')[0]
+            };
+
+            setEnrollments(prev => [...prev, newEnrollment]);
+
+            // Update class counts
+            const updatedClass = { ...targetClass };
+            if (status === EnrollmentStatus.CONFIRMED) updatedClass.enrolledCount++;
+            else updatedClass.waitingListCount++;
+            
+            setClasses(prev => prev.map(c => c.id === updatedClass.id ? updatedClass : c));
+            logAction('RESOLVE_REQUEST', `Aprovou vaga extra para ${request.studentName} em ${targetClass.title}`);
+        }
       }
     }
 
@@ -247,7 +281,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ? { ...r, status: approved ? RequestStatus.APPROVED : RequestStatus.REJECTED }
         : r
     ));
-    logAction('RESOLVE_REQUEST', `${approved ? 'Aprovou' : 'Rejeitou'} solicitação para: ${request.classTitle}`);
+    
+    if (request.requestType !== RequestType.ENROLLMENT_OVERRIDE) {
+        logAction('RESOLVE_REQUEST', `${approved ? 'Aprovou' : 'Rejeitou'} solicitação para: ${request.classTitle}`);
+    }
   };
 
   const calculateAge = (birthDate: string) => {
@@ -270,6 +307,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const exists = enrollments.find(e => e.studentId === studentId && e.classId === classId);
     if (exists) return { success: false, message: 'Aluno já cadastrado nesta turma.' };
+
+    // --- CHECK ACTIVE ENROLLMENTS LIMIT (MAX 3) ---
+    const activeEnrollmentsCount = enrollments.filter(e => e.studentId === studentId && e.status === EnrollmentStatus.CONFIRMED).length;
+    
+    if (activeEnrollmentsCount >= 3) {
+        // Limit Exceeded: Create Request for Coordinator
+        if (!currentUser) return { success: false, message: 'Usuário não logado.' };
+
+        const newRequest: ClassUpdateRequest = {
+            id: Math.random().toString(36).substr(2, 9),
+            requestType: RequestType.ENROLLMENT_OVERRIDE,
+            classId: targetClass.id,
+            classTitle: targetClass.title,
+            analystId: currentUser.id,
+            analystName: currentUser.name,
+            studentId: student.id,
+            studentName: student.name,
+            requestedChanges: {}, // No class structure changes
+            status: RequestStatus.PENDING,
+            createdAt: new Date().toISOString()
+        };
+
+        setUpdateRequests(prev => [newRequest, ...prev]);
+        
+        // Notify Coordinators
+        const coordinators = users.filter(u => u.role === UserRole.COORDINATOR);
+        const newNotifications = coordinators.map(coord => ({
+            id: Math.random().toString(36).substr(2, 9),
+            recipientId: coord.id,
+            title: 'Solicitação de Vaga Extra',
+            message: `${currentUser.name} solicitou inclusão de ${student.name} na 4ª atividade: ${targetClass.title}.`,
+            read: false,
+            createdAt: new Date().toISOString()
+        }));
+        setNotifications(prev => [...newNotifications, ...prev]);
+
+        return { 
+            success: false, 
+            message: 'Limite de 3 atividades atingido. Solicitação enviada à Coordenação para aprovação.' 
+        };
+    }
 
     const isFull = targetClass.enrolledCount >= targetClass.capacity;
     const status = isFull ? EnrollmentStatus.WAITING_LIST : EnrollmentStatus.CONFIRMED;
@@ -593,7 +671,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{
       currentUser, users, classes, enrollments, attendance, updateRequests, auditLogs, notifications,
-      login, logout, addClass, updateClass, deleteClass, updateUser, updateCurrentUserProfile, addUser,
+      login, logout, addClass, updateClass, deleteClass, updateUser, updateCurrentUserProfile, addUser, deleteUser,
       requestClassUpdate, requestClassCreation, resolveUpdateRequest,
       enrollStudent, requestEnrollment, confirmReservation, cancelEnrollment, submitAttendance,
       generateAttendanceReport, printAttendanceReport, markNotificationAsRead

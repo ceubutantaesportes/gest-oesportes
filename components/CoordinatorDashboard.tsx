@@ -1,8 +1,9 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, BookOpen, AlertTriangle, ClipboardCheck, Calendar, Search, ArrowRight, CheckCircle, XCircle, Clock, PlusSquare, Eye, ArrowLeft, Mail, Phone, FileText, LayoutGrid, ListOrdered, ChevronRight, BarChart2, Bell, GraduationCap, Briefcase, UserCog, Save, X, Plus, Smartphone, Home, ShieldCheck, Activity, LayoutTemplate } from 'lucide-react';
+import { Users, BookOpen, AlertTriangle, ClipboardCheck, Calendar, Search, ArrowRight, CheckCircle, XCircle, Clock, PlusSquare, Eye, ArrowLeft, Mail, Phone, FileText, LayoutGrid, ListOrdered, ChevronRight, BarChart2, Bell, GraduationCap, Briefcase, UserCog, Save, X, Plus, Smartphone, Home, ShieldCheck, Activity, LayoutTemplate, AlertOctagon, Trash2 } from 'lucide-react';
 import { RequestStatus, RequestType, EnrollmentStatus, UserRole, User, SportClass } from '../types';
 import { LOCATIONS } from '../constants';
 
@@ -11,7 +12,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 type DashboardView = 'MENU' | 'OVERVIEW' | 'WAITLIST' | 'MODALITIES' | 'AUDIT' | 'REQUESTS' | 'MANAGE_STUDENTS' | 'MANAGE_STAFF' | 'USER_AUDIT' | 'SPACE_MANAGEMENT';
 
 const CoordinatorDashboard: React.FC = () => {
-  const { classes, enrollments, attendance, users, updateRequests, resolveUpdateRequest, updateUser, addUser, auditLogs, notifications, markNotificationAsRead, currentUser } = useApp();
+  const { classes, enrollments, attendance, users, updateRequests, resolveUpdateRequest, updateUser, addUser, deleteUser, auditLogs, notifications, markNotificationAsRead, currentUser } = useApp();
   const [currentView, setCurrentView] = useState<DashboardView>('MENU');
   
   // State for Class Detail View (Shared across views)
@@ -53,7 +54,7 @@ const CoordinatorDashboard: React.FC = () => {
 
   // Stats Logic
   const totalSpots = classes.reduce((acc, curr) => acc + curr.capacity, 0);
-  const totalEnrolled = enrollments.length; 
+  const totalEnrolled = enrollments.filter(e => e.status === EnrollmentStatus.CONFIRMED).length; 
   const occupancyRate = totalSpots > 0 ? Math.round((totalEnrolled / totalSpots) * 100) : 0;
   
   const waitlistTotal = classes.reduce((acc, curr) => acc + curr.waitingListCount, 0);
@@ -144,6 +145,12 @@ const CoordinatorDashboard: React.FC = () => {
         setEditingUser(null);
         alert('Usuário atualizado com sucesso!');
     }
+  };
+
+  const handleDeleteUser = (user: User) => {
+      if (window.confirm(`Tem certeza que deseja excluir o usuário ${user.name}? Esta ação não pode ser desfeita.`)) {
+          deleteUser(user.id);
+      }
   };
 
   const handleAddUser = (e: React.FormEvent) => {
@@ -655,61 +662,80 @@ const CoordinatorDashboard: React.FC = () => {
             </div>
         ) : (
             <div className="grid gap-6">
-                {pendingRequests.map(req => (
-                    <div key={req.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <span className={`text-xs font-bold px-2 py-1 rounded uppercase mb-2 inline-block ${
-                                    req.requestType === RequestType.CREATE ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                    {req.requestType === RequestType.CREATE ? 'Nova Turma' : 'Alteração'}
-                                </span>
-                                <h3 className="text-xl font-bold text-gray-900">{req.classTitle}</h3>
-                                <p className="text-sm text-gray-500">Solicitado por: {req.analystName} em {new Date(req.createdAt).toLocaleDateString('pt-BR')}</p>
+                {pendingRequests.map(req => {
+                    const isEnrollmentOverride = req.requestType === RequestType.ENROLLMENT_OVERRIDE;
+
+                    return (
+                        <div key={req.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <span className={`text-xs font-bold px-2 py-1 rounded uppercase mb-2 inline-block ${
+                                        req.requestType === RequestType.CREATE ? 'bg-blue-100 text-blue-800' : 
+                                        req.requestType === RequestType.ENROLLMENT_OVERRIDE ? 'bg-purple-100 text-purple-800' :
+                                        'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                        {req.requestType === RequestType.CREATE ? 'Nova Turma' : 
+                                         req.requestType === RequestType.ENROLLMENT_OVERRIDE ? 'Vaga Extra (4ª Atividade)' :
+                                         'Alteração'}
+                                    </span>
+                                    <h3 className="text-xl font-bold text-gray-900">{req.classTitle}</h3>
+                                    <p className="text-sm text-gray-500">Solicitado por: {req.analystName} em {new Date(req.createdAt).toLocaleDateString('pt-BR')}</p>
+                                </div>
+                            </div>
+
+                            <div className={`p-4 rounded-lg border mb-4 text-sm ${isEnrollmentOverride ? 'bg-purple-50 border-purple-200 text-purple-900' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                                <h4 className="font-bold mb-2">Detalhes da Solicitação:</h4>
+                                
+                                {isEnrollmentOverride ? (
+                                    <div className="flex items-center">
+                                        <AlertOctagon className="mr-3 text-purple-600" size={24} />
+                                        <div>
+                                            <p className="font-bold text-lg">{req.studentName}</p>
+                                            <p className="text-sm">O aluno atingiu o limite de 3 matrículas e solicita inscrição na 4ª atividade.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <ul className="space-y-1">
+                                        {Object.entries(req.requestedChanges).map(([key, value]) => {
+                                            if (key === 'status' || key === 'analystId' || key === 'analystName') return null;
+                                            
+                                            const label = fieldLabels[key] || key;
+                                            let displayValue: any = value;
+                                            
+                                            if (Array.isArray(value)) {
+                                                displayValue = value.join(', ');
+                                            } else if (key === 'createdAt' && typeof value === 'string') {
+                                                displayValue = new Date(value as string).toLocaleString('pt-BR');
+                                            }
+
+                                            return (
+                                                <li key={key} className="flex">
+                                                    <span className="font-bold text-gray-900 w-40 shrink-0">{label}:</span>
+                                                    <span className="flex-1 text-gray-800">{displayValue as React.ReactNode}</span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button 
+                                    onClick={() => resolveUpdateRequest(req.id, false)}
+                                    className="px-4 py-2 border border-red-300 text-red-700 rounded-lg font-bold hover:bg-red-50 flex items-center"
+                                >
+                                    <XCircle size={18} className="mr-2" /> Rejeitar
+                                </button>
+                                <button 
+                                    onClick={() => resolveUpdateRequest(req.id, true)}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 flex items-center shadow-sm"
+                                >
+                                    <CheckCircle size={18} className="mr-2" /> Aprovar
+                                </button>
                             </div>
                         </div>
-
-                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4 text-sm text-gray-700">
-                            <h4 className="font-bold mb-2">Detalhes da Solicitação:</h4>
-                            <ul className="space-y-1">
-                                {Object.entries(req.requestedChanges).map(([key, value]) => {
-                                    if (key === 'status' || key === 'analystId' || key === 'analystName') return null;
-                                    
-                                    const label = fieldLabels[key] || key;
-                                    let displayValue = value;
-                                    
-                                    if (Array.isArray(value)) {
-                                        displayValue = value.join(', ');
-                                    } else if (key === 'createdAt' && typeof value === 'string') {
-                                        displayValue = new Date(value as any).toLocaleString('pt-BR');
-                                    }
-
-                                    return (
-                                        <li key={key} className="flex">
-                                            <span className="font-bold text-gray-900 w-40 shrink-0">{label}:</span>
-                                            <span className="flex-1 text-gray-800">{displayValue as React.ReactNode}</span>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
-
-                        <div className="flex justify-end gap-3">
-                            <button 
-                                onClick={() => resolveUpdateRequest(req.id, false)}
-                                className="px-4 py-2 border border-red-300 text-red-700 rounded-lg font-bold hover:bg-red-50 flex items-center"
-                            >
-                                <XCircle size={18} className="mr-2" /> Rejeitar
-                            </button>
-                            <button 
-                                onClick={() => resolveUpdateRequest(req.id, true)}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 flex items-center shadow-sm"
-                            >
-                                <CheckCircle size={18} className="mr-2" /> Aprovar
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         )}
       </div>
@@ -1062,13 +1088,22 @@ const CoordinatorDashboard: React.FC = () => {
                                     </td>
                                 )}
                                 <td className="px-6 py-4 text-center">
-                                    <button 
-                                        onClick={() => setEditingUser(user)}
-                                        className="text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center mx-auto"
-                                        title="Editar Usuário"
-                                    >
-                                        <UserCog size={18} />
-                                    </button>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button 
+                                            onClick={() => setEditingUser(user)}
+                                            className="text-blue-600 hover:text-blue-800 font-medium p-1 rounded hover:bg-blue-50 transition-colors"
+                                            title="Editar Usuário"
+                                        >
+                                            <UserCog size={18} />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteUser(user)}
+                                            className="text-red-600 hover:text-red-800 font-medium p-1 rounded hover:bg-red-50 transition-colors"
+                                            title="Excluir Usuário"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

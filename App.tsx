@@ -1,28 +1,112 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
-import { UserRole } from './types';
+import { UserRole, User } from './types';
 import StudentDashboard from './components/StudentDashboard';
 import SecretaryDashboard from './components/SecretaryDashboard';
 import AnalystDashboard from './components/AnalystDashboard';
 import CoordinatorDashboard from './components/CoordinatorDashboard';
 import UserProfileModal from './components/UserProfileModal';
-import { Menu, LogOut, LayoutDashboard, User, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserCog } from 'lucide-react';
+import { Menu, LogOut, LayoutDashboard, User as UserIcon, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserCog, UserPlus, ArrowLeft, Calendar, FileText, Phone } from 'lucide-react';
 
 const LoginScreen: React.FC = () => {
-  const { login } = useApp();
+  const { login, addUser, users } = useApp();
+  
+  // Login State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Registration State
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regCpf, setRegCpf] = useState('');
+  const [regBirthDate, setRegBirthDate] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  
+  // Guardian State (for minors)
+  const [isMinor, setIsMinor] = useState(false);
+  const [regGuardianName, setRegGuardianName] = useState('');
+  const [regGuardianCpf, setRegGuardianCpf] = useState('');
+  const [regGuardianPhone, setRegGuardianPhone] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Helper to calculate age
+  useEffect(() => {
+    if (regBirthDate) {
+      const today = new Date();
+      const birth = new Date(regBirthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+          age--;
+      }
+      setIsMinor(age < 18);
+    }
+  }, [regBirthDate]);
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     const success = login(email, password);
     if (!success) {
       setError('E-mail ou senha inválidos.');
     }
+  };
+
+  const applyCPFMask = (value: string) => {
+    let v = value.replace(/\D/g, "");
+    v = v.slice(0, 11);
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    return v;
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Validations
+    if (regPassword !== regConfirmPassword) {
+        setError('As senhas não coincidem.');
+        return;
+    }
+    if (regPassword.length < 6) {
+        setError('A senha deve ter pelo menos 6 caracteres.');
+        return;
+    }
+    if (users.some(u => u.email === regEmail)) {
+        setError('Este e-mail já está cadastrado.');
+        return;
+    }
+    if (isMinor && (!regGuardianName || !regGuardianCpf || !regGuardianPhone)) {
+        setError('Para menores de 18 anos, os dados do responsável são obrigatórios.');
+        return;
+    }
+
+    // Create User
+    const newUser: User = {
+        id: `u_self_${Date.now()}`,
+        role: UserRole.STUDENT,
+        name: regName,
+        email: regEmail,
+        password: regPassword,
+        cpf: regCpf,
+        birthDate: regBirthDate,
+        cellphone: regPhone,
+        guardianName: isMinor ? regGuardianName : undefined,
+        guardianCpf: isMinor ? regGuardianCpf : undefined,
+        guardianPhone: isMinor ? regGuardianPhone : undefined,
+        guardianEmail: isMinor ? regEmail : undefined // Fallback
+    };
+
+    addUser(newUser);
+    // Auto login
+    login(regEmail, regPassword);
   };
 
   // Helper to fill form for demo purposes
@@ -32,18 +116,200 @@ const LoginScreen: React.FC = () => {
     setError('');
   };
 
+  if (isRegistering) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-800 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl animate-fade-in overflow-y-auto max-h-[90vh]">
+            <div className="mb-6">
+                <button 
+                    onClick={() => setIsRegistering(false)}
+                    className="flex items-center text-gray-500 hover:text-blue-600 transition-colors text-sm font-bold mb-4"
+                >
+                    <ArrowLeft size={16} className="mr-1" /> Voltar para Login
+                </button>
+                <h1 className="text-2xl font-extrabold text-gray-900">Cadastro de Aluno</h1>
+                <p className="text-gray-500 text-sm">Preencha seus dados para acessar o CEU Butantã.</p>
+            </div>
+
+            {error && (
+                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center mb-6 border border-red-200 font-bold">
+                    <AlertCircle size={16} className="mr-2 flex-shrink-0" /> {error}
+                </div>
+            )}
+
+            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Nome Completo</label>
+                        <div className="relative">
+                            <UserIcon className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input 
+                                type="text" 
+                                required
+                                value={regName}
+                                onChange={e => setRegName(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                placeholder="Seu nome completo"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">CPF</label>
+                        <div className="relative">
+                            <FileText className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input 
+                                type="text" 
+                                required
+                                value={regCpf}
+                                onChange={e => setRegCpf(applyCPFMask(e.target.value))}
+                                maxLength={14}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                placeholder="000.000.000-00"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Data de Nascimento</label>
+                        <div className="relative">
+                            <input 
+                                type="date" 
+                                required
+                                value={regBirthDate}
+                                onChange={e => setRegBirthDate(e.target.value)}
+                                className="w-full pl-3 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Celular / WhatsApp</label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input 
+                                type="text" 
+                                required
+                                value={regPhone}
+                                onChange={e => setRegPhone(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                placeholder="(11) 99999-9999"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-bold text-gray-700 mb-1">E-mail (Login)</label>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input 
+                                type="email" 
+                                required
+                                value={regEmail}
+                                onChange={e => setRegEmail(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                placeholder="seu@email.com"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Senha</label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input 
+                                type="password" 
+                                required
+                                value={regPassword}
+                                onChange={e => setRegPassword(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                placeholder="Mínimo 6 caracteres"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Confirmar Senha</label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input 
+                                type="password" 
+                                required
+                                value={regConfirmPassword}
+                                onChange={e => setRegConfirmPassword(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                placeholder="Repita a senha"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {isMinor && (
+                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 mt-4">
+                        <h3 className="text-orange-900 font-bold text-sm mb-3 flex items-center">
+                            <ShieldCheck size={18} className="mr-2"/> Dados do Responsável (Menor de 18 anos)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Nome do Responsável</label>
+                                <input 
+                                    type="text" 
+                                    required={isMinor}
+                                    value={regGuardianName}
+                                    onChange={e => setRegGuardianName(e.target.value)}
+                                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none bg-white text-gray-900 text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">CPF do Responsável</label>
+                                <input 
+                                    type="text" 
+                                    required={isMinor}
+                                    value={regGuardianCpf}
+                                    onChange={e => setRegGuardianCpf(applyCPFMask(e.target.value))}
+                                    maxLength={14}
+                                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none bg-white text-gray-900 text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-800 mb-1">Celular do Responsável</label>
+                                <input 
+                                    type="text" 
+                                    required={isMinor}
+                                    value={regGuardianPhone}
+                                    onChange={e => setRegGuardianPhone(e.target.value)}
+                                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none bg-white text-gray-900 text-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <button 
+                    type="submit" 
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg mt-6 flex items-center justify-center"
+                >
+                    <UserPlus size={20} className="mr-2" /> Finalizar Cadastro
+                </button>
+            </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- LOGIN VIEW ---
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-800 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">CEU Butantã</h1>
           <p className="text-gray-500">Sistema de Gestão Esportiva</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleLoginSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center">
-              <AlertCircle size={16} className="mr-2" /> {error}
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center border border-red-200 font-bold">
+              <AlertCircle size={16} className="mr-2 flex-shrink-0" /> {error}
             </div>
           )}
           
@@ -91,6 +357,16 @@ const LoginScreen: React.FC = () => {
             Entrar
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+            <p className="text-gray-600 text-sm">Não tem uma conta?</p>
+            <button 
+                onClick={() => setIsRegistering(true)}
+                className="text-blue-600 hover:text-blue-800 font-bold text-sm mt-1 hover:underline"
+            >
+                Criar cadastro de Aluno
+            </button>
+        </div>
 
         <div className="mt-8 pt-6 border-t border-gray-100">
           <p className="text-xs text-center font-bold text-gray-400 uppercase tracking-wide mb-4">Contas de Teste (Senha: 123456)</p>
