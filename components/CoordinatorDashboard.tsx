@@ -550,6 +550,69 @@ const CoordinatorDashboard: React.FC = () => {
   };
 
   const renderWaitlist = () => {
+    // 1. DETAIL VIEW: If a specific class is selected, show its waitlist table
+    if (viewingWaitlistClassId) {
+        const activeClass = classes.find(c => c.id === viewingWaitlistClassId);
+        if (!activeClass) return <div>Turma não encontrada</div>;
+
+        const waitlist = enrollments
+            .filter(e => e.classId === viewingWaitlistClassId && e.status === EnrollmentStatus.WAITING_LIST)
+            .map(enr => users.find(u => u.id === enr.studentId))
+            .filter(u => u !== undefined) as User[];
+
+        return (
+             <div className="space-y-6 animate-fade-in">
+                <div className="flex items-center">
+                    <button onClick={() => setViewingWaitlistClassId(null)} className="mr-4 text-gray-600 hover:text-orange-600">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <h2 className="text-2xl font-bold text-gray-900">Fila de Espera: {activeClass.title}</h2>
+                </div>
+                
+                <div className="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden">
+                    <div className="p-4 bg-orange-50 border-b border-orange-200">
+                        <p className="text-orange-800 font-bold text-sm">Ordem de Prioridade (Contato)</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                         <table className="w-full text-sm text-left text-black">
+                            <thead className="text-xs text-gray-900 uppercase bg-gray-50 font-bold">
+                                <tr>
+                                    <th className="px-6 py-4">Posição</th>
+                                    <th className="px-6 py-4">Nome do Aluno</th>
+                                    <th className="px-6 py-4">Telefones</th>
+                                    <th className="px-6 py-4">Email</th>
+                                    <th className="px-6 py-4 text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {waitlist.map((student, index) => (
+                                    <tr key={student.id} className="bg-white border-b border-gray-100 hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-bold text-orange-600 text-lg">#{index + 1}</td>
+                                        <td className="px-6 py-4 font-bold text-gray-900">{student.name}</td>
+                                        <td className="px-6 py-4 text-gray-800 font-medium">
+                                            {student.cellphone} {student.phone && `/ ${student.phone}`}
+                                            {student.guardianPhone && <div className="text-xs text-gray-500 mt-1">Resp: {student.guardianPhone}</div>}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-800 font-medium">{student.email}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <button className="text-blue-600 hover:text-blue-800 font-bold text-xs border border-blue-200 px-3 py-1 rounded bg-blue-50">
+                                                Ver Perfil
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {waitlist.length === 0 && (
+                                    <tr><td colSpan={5} className="p-6 text-center text-gray-500">Ninguém na fila.</td></tr>
+                                )}
+                            </tbody>
+                         </table>
+                    </div>
+                </div>
+             </div>
+        );
+    }
+
+    // 2. OVERVIEW: List all classes with waiting list
     const classesWithWaitlist = classes.filter(c => c.waitingListCount > 0);
 
     return (
@@ -571,7 +634,11 @@ const CoordinatorDashboard: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {classesWithWaitlist.map(cls => (
-                        <div key={cls.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
+                        <div 
+                            key={cls.id} 
+                            onClick={() => setViewingWaitlistClassId(cls.id)}
+                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center cursor-pointer hover:shadow-md hover:border-orange-300 transition-all"
+                        >
                             <div>
                                 <h3 className="font-bold text-lg text-gray-900">{cls.title}</h3>
                                 <p className="text-sm text-gray-600 font-medium">{cls.days.join('/')} • {cls.time}</p>
