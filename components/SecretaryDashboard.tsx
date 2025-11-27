@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, EnrollmentStatus, User } from '../types';
@@ -1159,7 +1160,11 @@ const SecretaryDashboard: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {classesWithWaitlist.map(cls => (
-                        <div key={cls.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all flex justify-between items-center">
+                        <div 
+                            key={cls.id} 
+                            onClick={() => setViewingWaitlistClassId(cls.id)}
+                            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center cursor-pointer hover:shadow-md hover:border-orange-300 transition-all"
+                        >
                             <div>
                                 <h3 className="font-bold text-lg text-gray-900">{cls.title}</h3>
                                 <p className="text-sm text-gray-600 font-medium">{cls.days.join('/')} • {cls.time}</p>
@@ -1170,12 +1175,6 @@ const SecretaryDashboard: React.FC = () => {
                                     <span className="block text-xl font-bold text-orange-600">{cls.waitingListCount}</span>
                                     <span className="text-xs text-orange-800 font-bold uppercase">Na Fila</span>
                                 </div>
-                                <button 
-                                    onClick={() => setViewingWaitlistClassId(cls.id)}
-                                    className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-4 py-2 rounded-lg font-bold text-sm"
-                                >
-                                    Ver Lista
-                                </button>
                             </div>
                         </div>
                     ))}

@@ -53,7 +53,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Initialize state with localStorage or Mock Data
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('app_currentUser');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) { return null; }
+  });
 
   const [users, setUsers] = useState<User[]>(() => {
     try {
@@ -114,6 +119,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { localStorage.setItem('app_requests', JSON.stringify(updateRequests)); }, [updateRequests]);
   useEffect(() => { localStorage.setItem('app_audit', JSON.stringify(auditLogs)); }, [auditLogs]);
   useEffect(() => { localStorage.setItem('app_notifications', JSON.stringify(notifications)); }, [notifications]);
+
+  // Persist Current User Session
+  useEffect(() => {
+    if (currentUser) {
+        localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
+    } else {
+        localStorage.removeItem('app_currentUser');
+    }
+  }, [currentUser]);
 
   const logAction = (action: string, details: string) => {
     if (!currentUser) return;
