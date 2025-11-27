@@ -11,7 +11,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 type DashboardView = 'MENU' | 'OVERVIEW' | 'WAITLIST' | 'MODALITIES' | 'AUDIT' | 'REQUESTS' | 'MANAGE_STUDENTS' | 'MANAGE_STAFF' | 'USER_AUDIT' | 'SPACE_MANAGEMENT';
 
 const CoordinatorDashboard: React.FC = () => {
-  const { classes, enrollments, attendance, users, updateRequests, resolveUpdateRequest, updateUser, addUser, auditLogs } = useApp();
+  const { classes, enrollments, attendance, users, updateRequests, resolveUpdateRequest, updateUser, addUser, auditLogs, notifications, markNotificationAsRead, currentUser } = useApp();
   const [currentView, setCurrentView] = useState<DashboardView>('MENU');
   
   // State for Class Detail View (Shared across views)
@@ -34,6 +34,9 @@ const CoordinatorDashboard: React.FC = () => {
   // State for Audit Logs
   const [auditSearch, setAuditSearch] = useState('');
   
+  // State for Notifications
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  
   const [newUserData, setNewUserData] = useState<Partial<User>>({
       name: '',
       email: '',
@@ -55,6 +58,10 @@ const CoordinatorDashboard: React.FC = () => {
   
   const waitlistTotal = classes.reduce((acc, curr) => acc + curr.waitingListCount, 0);
   const pendingRequests = updateRequests.filter(r => r.status === RequestStatus.PENDING);
+
+  // Notification Logic
+  const myNotifications = notifications.filter(n => n.recipientId === currentUser?.id).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const unreadCount = myNotifications.filter(n => !n.read).length;
 
   // Data for Charts
   const modalityData = classes.reduce((acc, curr) => {
@@ -674,7 +681,7 @@ const CoordinatorDashboard: React.FC = () => {
                                     if (Array.isArray(value)) {
                                         displayValue = value.join(', ');
                                     } else if (key === 'createdAt' && typeof value === 'string') {
-                                        displayValue = new Date(value as string).toLocaleString('pt-BR');
+                                        displayValue = new Date(value as any).toLocaleString('pt-BR');
                                     }
 
                                     return (
@@ -824,7 +831,65 @@ const CoordinatorDashboard: React.FC = () => {
   // --- VIEW 1: MENU (HOME) ---
   const renderMenu = () => (
     <div className="animate-fade-in">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Central de Controle</h2>
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Central de Controle</h2>
+            
+            {/* NOTIFICATIONS BELL (Copied from AnalystDashboard) */}
+             <div className="relative">
+                 <button 
+                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                    className="p-2 bg-white rounded-full text-gray-600 hover:text-blue-600 shadow-sm border border-gray-200 relative"
+                 >
+                     <Bell size={24} />
+                     {unreadCount > 0 && (
+                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                             {unreadCount}
+                         </span>
+                     )}
+                 </button>
+
+                 {isNotificationsOpen && (
+                     <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden animate-fade-in">
+                         <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                             <h3 className="font-bold text-gray-900">Notificações</h3>
+                             <button onClick={() => setIsNotificationsOpen(false)} className="text-gray-500 hover:text-gray-900"><X size={18}/></button>
+                         </div>
+                         <div className="max-h-[400px] overflow-y-auto">
+                             {myNotifications.length === 0 ? (
+                                 <div className="p-8 text-center text-gray-500 font-medium text-sm">Nenhuma notificação recente.</div>
+                             ) : (
+                                 <div className="divide-y divide-gray-100">
+                                     {myNotifications.map(notif => (
+                                         <div 
+                                            key={notif.id} 
+                                            className={`p-4 hover:bg-gray-50 transition-colors ${!notif.read ? 'bg-blue-50/50' : ''}`}
+                                            onClick={() => markNotificationAsRead(notif.id)}
+                                         >
+                                             <div className="flex justify-between items-start mb-1">
+                                                 <span className={`text-xs font-bold px-2 py-0.5 rounded ${notif.title.includes('Fila') ? 'bg-yellow-200 text-yellow-800' : 'bg-green-200 text-green-800'}`}>
+                                                     {notif.title}
+                                                 </span>
+                                                 <span className="text-xs text-gray-500">{new Date(notif.createdAt).toLocaleDateString()}</span>
+                                             </div>
+                                             <p className="text-sm font-bold text-gray-900 mt-2">{notif.message}</p>
+                                             
+                                             {notif.details && (
+                                                <div className="mt-3 text-xs bg-white border border-gray-200 rounded p-2 text-gray-700 space-y-1">
+                                                    <p><strong>Aluno:</strong> {notif.details.studentName} ({notif.details.studentAge} anos)</p>
+                                                    <p><strong>Nasc:</strong> {notif.details.studentBirthDate}</p>
+                                                    <p><strong>Tel:</strong> {notif.details.studentPhone}</p>
+                                                </div>
+                                             )}
+                                         </div>
+                                     ))}
+                                 </div>
+                             )}
+                         </div>
+                     </div>
+                 )}
+             </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {/* Overview Card */}
             <button onClick={() => setCurrentView('OVERVIEW')} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left group">
