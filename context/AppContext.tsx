@@ -18,6 +18,7 @@ interface AppContextType {
   
   // User Methods
   updateUser: (updatedUser: User) => void;
+  updateCurrentUserProfile: (data: Partial<User>) => void; // New method
   addUser: (newUser: User) => void;
 
   // Class Methods
@@ -141,6 +142,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateUser = (updatedUser: User) => {
     setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
     logAction('UPDATE_USER', `Alterou dados do usuário: ${updatedUser.name} (${updatedUser.role})`);
+    
+    // If Admin updates the logged-in user, keep session in sync
+    if (currentUser && currentUser.id === updatedUser.id) {
+        setCurrentUser(updatedUser);
+    }
+  };
+
+  const updateCurrentUserProfile = (data: Partial<User>) => {
+    if (!currentUser) return;
+    
+    const updatedUser = { ...currentUser, ...data };
+    
+    // Update session
+    setCurrentUser(updatedUser);
+    
+    // Update Database
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+    
+    logAction('PROFILE_UPDATE', 'Usuário atualizou o próprio perfil');
   };
 
   const addUser = (newUser: User) => {
@@ -573,7 +593,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{
       currentUser, users, classes, enrollments, attendance, updateRequests, auditLogs, notifications,
-      login, logout, addClass, updateClass, deleteClass, updateUser, addUser,
+      login, logout, addClass, updateClass, deleteClass, updateUser, updateCurrentUserProfile, addUser,
       requestClassUpdate, requestClassCreation, resolveUpdateRequest,
       enrollStudent, requestEnrollment, confirmReservation, cancelEnrollment, submitAttendance,
       generateAttendanceReport, printAttendanceReport, markNotificationAsRead

@@ -674,13 +674,13 @@ const CoordinatorDashboard: React.FC = () => {
                                     if (Array.isArray(value)) {
                                         displayValue = value.join(', ');
                                     } else if (key === 'createdAt' && typeof value === 'string') {
-                                        displayValue = new Date(value).toLocaleString('pt-BR');
+                                        displayValue = new Date(value as string).toLocaleString('pt-BR');
                                     }
 
                                     return (
                                         <li key={key} className="flex">
                                             <span className="font-bold text-gray-900 w-40 shrink-0">{label}:</span>
-                                            <span className="flex-1 text-gray-800">{displayValue}</span>
+                                            <span className="flex-1 text-gray-800">{displayValue as React.ReactNode}</span>
                                         </li>
                                     );
                                 })}
@@ -1378,7 +1378,7 @@ const CoordinatorDashboard: React.FC = () => {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-bold text-gray-900 mb-1">Celular</label>
+                                                    <label className="block text-xs font-bold text-gray-900 mb-1">Tel</label>
                                                     <input 
                                                         type="text" className="w-full p-2 border border-gray-400 rounded text-black font-medium"
                                                         value={newUserData.guardianPhone}

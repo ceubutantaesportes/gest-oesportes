@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { UserRole } from './types';
@@ -5,7 +6,8 @@ import StudentDashboard from './components/StudentDashboard';
 import SecretaryDashboard from './components/SecretaryDashboard';
 import AnalystDashboard from './components/AnalystDashboard';
 import CoordinatorDashboard from './components/CoordinatorDashboard';
-import { Menu, LogOut, LayoutDashboard, User, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import UserProfileModal from './components/UserProfileModal';
+import { Menu, LogOut, LayoutDashboard, User, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserCog } from 'lucide-react';
 
 const LoginScreen: React.FC = () => {
   const { login } = useApp();
@@ -116,6 +118,7 @@ const LoginScreen: React.FC = () => {
 const DashboardLayout: React.FC = () => {
   const { currentUser, logout } = useApp();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const renderContent = () => {
     switch (currentUser?.role) {
@@ -155,7 +158,7 @@ const DashboardLayout: React.FC = () => {
         </div>
         
         <div className="p-6">
-          <div className="flex items-center space-x-3 mb-8 bg-slate-800 p-3 rounded-lg">
+          <div className="flex items-center space-x-3 mb-6 bg-slate-800 p-3 rounded-lg">
             <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold">
               {currentUser?.name.charAt(0)}
             </div>
@@ -164,10 +167,17 @@ const DashboardLayout: React.FC = () => {
               <p className="text-xs text-slate-400 truncate">{roleLabels[currentUser?.role || UserRole.STUDENT]}</p>
             </div>
           </div>
+          
+          <button 
+             onClick={() => setIsProfileOpen(true)}
+             className="w-full flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors mb-8 border border-slate-700"
+          >
+             <UserCog size={16} className="mr-2" /> Meu Perfil
+          </button>
 
           <nav className="space-y-2">
-            <button className="w-full text-left px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium">
-              Dashboard
+            <button className="w-full text-left px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium flex items-center">
+              <LayoutDashboard size={16} className="mr-2" /> Dashboard
             </button>
             {/* Future nav items could go here */}
           </nav>
@@ -199,6 +209,9 @@ const DashboardLayout: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Profile Modal */}
+      <UserProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </div>
   );
 };
