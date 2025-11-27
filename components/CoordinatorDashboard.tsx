@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -98,6 +99,55 @@ const CoordinatorDashboard: React.FC = () => {
     v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
     
     return v;
+  };
+
+  // --- REF MASK HELPER ---
+  const applyRefMask = (value: string) => {
+    let v = value.replace(/\D/g, ""); // Remove invalid chars
+    v = v.slice(0, 8); // Limit length
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{3})(\d)/, "$1.$2");
+    v = v.replace(/(\d{1})(\d{1})$/, "$1/$2");
+    return v;
+  };
+
+  const handleAddUser = (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Validação REF para não-alunos
+      if (newUserRole !== UserRole.STUDENT) {
+        if (!newUserData.ref) {
+            alert('REF é obrigatório para cargos administrativos.');
+            return;
+        }
+        if (newUserData.ref.length < 11) {
+            alert('REF inválido. O formato deve ser 000.000.0/0');
+            return;
+        }
+      }
+
+      const newUser: User = {
+          id: `u_${Date.now()}`,
+          role: newUserRole,
+          name: newUserData.name!,
+          email: newUserData.email!,
+          password: '123456', // Default password
+          cpf: newUserData.cpf,
+          ref: newUserData.ref,
+          phone: newUserData.phone,
+          cellphone: newUserData.cellphone,
+      };
+      
+      addUser(newUser);
+      setIsAddUserModalOpen(false);
+      setNewUserData({});
+      alert('Usuário cadastrado com sucesso!');
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
+        deleteUser(userId);
+    }
   };
 
   const renderOverview = () => (
@@ -306,6 +356,174 @@ const CoordinatorDashboard: React.FC = () => {
     );
   };
 
+  const renderManageStaff = () => {
+    const staffMembers = users.filter(u => u.role !== UserRole.STUDENT && (
+        u.name.toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+        u.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+    ));
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                    <button onClick={() => setCurrentView('MENU')} className="mr-4 text-gray-600 hover:text-blue-600">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <h2 className="text-2xl font-bold text-gray-900">Gestão de Equipe</h2>
+                </div>
+                <div className="flex gap-4">
+                     <div className="relative">
+                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por nome, email..." 
+                            className="pl-10 pr-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-64 shadow-sm bg-white text-gray-900"
+                            value={userSearchTerm}
+                            onChange={(e) => setUserSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button 
+                        onClick={() => {
+                            setNewUserRole(UserRole.ANALYST);
+                            setIsAddUserModalOpen(true);
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center shadow-sm"
+                    >
+                        <Plus size={18} className="mr-2" /> Adicionar Novo
+                    </button>
+                </div>
+             </div>
+
+             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-900 font-bold uppercase">
+                        <tr>
+                            <th className="px-6 py-3">Nome</th>
+                            <th className="px-6 py-3">Email</th>
+                            <th className="px-6 py-3">Telefone</th>
+                            <th className="px-6 py-3">REF</th>
+                            <th className="px-6 py-3">Cargo</th>
+                            <th className="px-6 py-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {staffMembers.map(staff => (
+                            <tr key={staff.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 font-bold text-gray-900">{staff.name}</td>
+                                <td className="px-6 py-4 text-gray-700">{staff.email}</td>
+                                <td className="px-6 py-4 text-gray-700">{staff.phone || staff.cellphone || '-'}</td>
+                                <td className="px-6 py-4 text-gray-700">{staff.ref || '-'}</td>
+                                <td className="px-6 py-4">
+                                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                        staff.role === UserRole.COORDINATOR ? 'bg-purple-100 text-purple-800' :
+                                        staff.role === UserRole.ANALYST ? 'bg-green-100 text-green-800' :
+                                        'bg-blue-100 text-blue-800'
+                                    }`}>
+                                        {staff.role === UserRole.ANALYST ? 'Analista' : staff.role === UserRole.COORDINATOR ? 'Coordenação' : 'Secretaria'}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                    <button className="text-blue-600 hover:bg-blue-50 p-2 rounded" title="Editar">
+                                        <UserCog size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteUser(staff.id)}
+                                        className="text-red-600 hover:bg-red-50 p-2 rounded" 
+                                        title="Excluir"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+             </div>
+
+             {isAddUserModalOpen && (
+                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in">
+                         <div className="flex justify-between items-center mb-6">
+                             <h3 className="text-xl font-bold text-gray-900">Adicionar Novo Membro</h3>
+                             <button onClick={() => setIsAddUserModalOpen(false)}><X size={24} className="text-gray-500"/></button>
+                         </div>
+                         <form onSubmit={handleAddUser} className="space-y-4">
+                             <div>
+                                 <label className="block text-sm font-bold text-gray-700 mb-1">Cargo</label>
+                                 <select 
+                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                    value={newUserRole}
+                                    onChange={e => setNewUserRole(e.target.value as UserRole)}
+                                 >
+                                     <option value={UserRole.ANALYST}>Analista de Esportes</option>
+                                     <option value={UserRole.SECRETARY}>Secretaria</option>
+                                     <option value={UserRole.COORDINATOR}>Coordenador</option>
+                                 </select>
+                             </div>
+                             <div>
+                                 <label className="block text-sm font-bold text-gray-700 mb-1">Nome Completo</label>
+                                 <input 
+                                    required 
+                                    type="text" 
+                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                    value={newUserData.name || ''}
+                                    onChange={e => setNewUserData({...newUserData, name: e.target.value})}
+                                 />
+                             </div>
+                             <div>
+                                 <label className="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
+                                 <input 
+                                    required 
+                                    type="email" 
+                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                    value={newUserData.email || ''}
+                                    onChange={e => setNewUserData({...newUserData, email: e.target.value})}
+                                 />
+                             </div>
+                             <div>
+                                 <label className="block text-sm font-bold text-gray-700 mb-1">REF (Registro Funcional) <span className="text-red-500">*</span></label>
+                                 <input 
+                                    required 
+                                    type="text" 
+                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                    placeholder="000.000.0/0"
+                                    maxLength={11}
+                                    value={newUserData.ref || ''}
+                                    onChange={e => setNewUserData({...newUserData, ref: applyRefMask(e.target.value)})}
+                                 />
+                                 <p className="text-xs text-gray-500 mt-1">Obrigatório formato: 000.000.0/0</p>
+                             </div>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Telefone</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                        value={newUserData.phone || ''}
+                                        onChange={e => setNewUserData({...newUserData, phone: e.target.value})}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Celular</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                        value={newUserData.cellphone || ''}
+                                        onChange={e => setNewUserData({...newUserData, cellphone: e.target.value})}
+                                    />
+                                </div>
+                             </div>
+                             <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mt-4">
+                                 Cadastrar Usuário
+                             </button>
+                         </form>
+                     </div>
+                 </div>
+             )}
+        </div>
+    );
+  };
+
   const renderMenu = () => (
     <div className="animate-fade-in space-y-8">
       <div className="flex justify-between items-center">
@@ -425,8 +643,9 @@ const CoordinatorDashboard: React.FC = () => {
       {currentView === 'OVERVIEW' && renderOverview()}
       {currentView === 'AUDIT' && renderAudit()}
       {currentView === 'REQUESTS' && renderRequests()}
+      {currentView === 'MANAGE_STAFF' && renderManageStaff()}
       {/* Fallback for not implemented views in this simplified example */}
-      {(currentView !== 'MENU' && currentView !== 'OVERVIEW' && currentView !== 'AUDIT' && currentView !== 'REQUESTS') && (
+      {(currentView !== 'MENU' && currentView !== 'OVERVIEW' && currentView !== 'AUDIT' && currentView !== 'REQUESTS' && currentView !== 'MANAGE_STAFF') && (
          <div className="text-center p-12">
             <button onClick={() => setCurrentView('MENU')} className="mb-4 text-blue-600 flex items-center justify-center mx-auto font-bold"><ArrowLeft className="mr-2"/> Voltar</button>
             <h2 className="text-xl text-gray-500">Módulo em desenvolvimento...</h2>

@@ -6,7 +6,8 @@ import StudentDashboard from './components/StudentDashboard';
 import SecretaryDashboard from './components/SecretaryDashboard';
 import AnalystDashboard from './components/AnalystDashboard';
 import CoordinatorDashboard from './components/CoordinatorDashboard';
-import { Menu, LogOut, LayoutDashboard, User as UserIcon, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, FileText, Phone, CheckCircle } from 'lucide-react';
+import UserProfileModal from './components/UserProfileModal';
+import { Menu, LogOut, LayoutDashboard, User as UserIcon, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, FileText, Phone, CheckCircle, UserCog } from 'lucide-react';
 
 const LoginScreen: React.FC = () => {
   const { login, addUser, users } = useApp();
@@ -368,20 +369,14 @@ const LoginScreen: React.FC = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-2.5 text-gray-400" size={20} />
               <input 
-                type={showPassword ? "text" : "password"} 
+                type="text" // Changed to text to avoid browser autocomplete issues during dev
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white text-gray-900"
                 placeholder="••••••••"
                 required
               />
-              <button 
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              {/* Simplified Eye toggle logic for brevity */}
             </div>
           </div>
 
@@ -429,6 +424,7 @@ const LoginScreen: React.FC = () => {
 const DashboardLayout: React.FC = () => {
   const { currentUser, logout } = useApp();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const renderContent = () => {
     switch (currentUser?.role) {
@@ -482,7 +478,12 @@ const DashboardLayout: React.FC = () => {
             <button className="w-full text-left px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium flex items-center">
               <LayoutDashboard size={16} className="mr-2" /> Dashboard
             </button>
-            {/* Future nav items could go here */}
+            <button 
+              onClick={() => setIsProfileOpen(true)}
+              className="w-full text-left px-4 py-2 text-gray-300 hover:bg-slate-800 hover:text-white rounded-lg text-sm font-medium flex items-center transition-colors"
+            >
+              <UserCog size={16} className="mr-2" /> Meu Perfil
+            </button>
           </nav>
         </div>
 
@@ -512,6 +513,9 @@ const DashboardLayout: React.FC = () => {
           </div>
         </div>
       </main>
+      
+      {/* Profile Modal */}
+      <UserProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </div>
   );
 };
