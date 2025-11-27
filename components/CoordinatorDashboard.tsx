@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, BookOpen, AlertTriangle, ClipboardCheck, Calendar, Search, ArrowRight, CheckCircle, XCircle, Clock, PlusSquare, Eye, ArrowLeft, Mail, Phone, FileText, LayoutGrid, ListOrdered, ChevronRight, BarChart2, Bell, GraduationCap, Briefcase, UserCog, Save, X, Plus, Smartphone, Home, ShieldCheck, Activity, LayoutTemplate, AlertOctagon, Trash2 } from 'lucide-react';
+import { Users, BookOpen, AlertTriangle, ClipboardCheck, Calendar, Search, ArrowRight, CheckCircle, XCircle, Clock, PlusSquare, Eye, ArrowLeft, Mail, Phone, FileText, LayoutGrid, ListOrdered, ChevronRight, BarChart2, Bell, GraduationCap, Briefcase, UserCog, Save, X, Plus, Smartphone, Home, ShieldCheck, Activity, LayoutTemplate, AlertOctagon, Trash2, MapPin } from 'lucide-react';
 import { RequestStatus, RequestType, EnrollmentStatus, UserRole, User, SportClass } from '../types';
 import { LOCATIONS } from '../constants';
 
@@ -40,6 +40,8 @@ const CoordinatorDashboard: React.FC = () => {
   const [newUserData, setNewUserData] = useState<Partial<User>>({
       name: '',
       email: '',
+      cpf: '',
+      birthDate: '',
       ref: '',
       phone: '',
       cellphone: '',
@@ -58,6 +60,7 @@ const CoordinatorDashboard: React.FC = () => {
   
   const waitlistTotal = classes.reduce((acc, curr) => acc + curr.waitingListCount, 0);
   const pendingRequests = updateRequests.filter(r => r.status === RequestStatus.PENDING);
+  const totalStaff = users.filter(u => u.role !== UserRole.STUDENT).length;
 
   // Notification Logic
   const myNotifications = notifications.filter(n => n.recipientId === currentUser?.id).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -82,11 +85,6 @@ const CoordinatorDashboard: React.FC = () => {
 
   // --- Attendance Audit Logic ---
   const [selectedAnalystId, setSelectedAnalystId] = useState<string>('');
-  const [selectedAuditClassId, setSelectedAuditClassId] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>('');
-
-  const analysts = users.filter(u => u.role === UserRole.ANALYST);
-  // unused for now: const filteredAuditClasses = classes.filter(c => selectedAnalystId ? c.analystId === selectedAnalystId : true);
   
   // --- CPF MASK HELPER ---
   const applyCPFMask = (value: string) => {
@@ -111,11 +109,43 @@ const CoordinatorDashboard: React.FC = () => {
     return v;
   };
 
+  const calculateAge = (birthDate: string) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age;
+  };
+
+  const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const date = e.target.value;
+      setNewUserData({...newUserData, birthDate: date});
+      if (date) {
+          const age = calculateAge(date);
+          setIsMinor(age < 18);
+      }
+  };
+
   const handleAddUser = (e: React.FormEvent) => {
       e.preventDefault();
       
-      // Validação REF para não-alunos
-      if (newUserRole !== UserRole.STUDENT) {
+      // Validação Específica por Cargo
+      if (newUserRole === UserRole.STUDENT) {
+        if (!newUserData.cpf || !newUserData.birthDate) {
+            alert('CPF e Data de Nascimento são obrigatórios para alunos.');
+            return;
+        }
+        if (isMinor) {
+            if (!newUserData.guardianName || !newUserData.guardianCpf) {
+                alert('Dados do responsável são obrigatórios para menores.');
+                return;
+            }
+        }
+      } else {
+        // Validação REF para não-alunos
         if (!newUserData.ref) {
             alert('REF é obrigatório para cargos administrativos.');
             return;
@@ -130,17 +160,28 @@ const CoordinatorDashboard: React.FC = () => {
           id: `u_${Date.now()}`,
           role: newUserRole,
           name: newUserData.name!,
-          email: newUserData.email!,
+          email: newUserData.email || `user.${Date.now()}@ceusistema.com.br`,
           password: '123456', // Default password
           cpf: newUserData.cpf,
           ref: newUserData.ref,
+          birthDate: newUserData.birthDate,
           phone: newUserData.phone,
           cellphone: newUserData.cellphone,
+          address: newUserData.address,
+          neighborhood: newUserData.neighborhood,
+          guardianName: isMinor ? newUserData.guardianName : undefined,
+          guardianCpf: isMinor ? newUserData.guardianCpf : undefined,
+          guardianPhone: isMinor ? newUserData.guardianPhone : undefined,
+          guardianEmail: isMinor ? newUserData.guardianEmail : undefined
       };
       
       addUser(newUser);
       setIsAddUserModalOpen(false);
-      setNewUserData({});
+      setNewUserData({
+          name: '', email: '', cpf: '', birthDate: '', ref: '', 
+          phone: '', cellphone: '', address: '', neighborhood: '', 
+          guardianName: '', guardianCpf: '', guardianEmail: '', guardianPhone: ''
+      });
       alert('Usuário cadastrado com sucesso!');
   };
 
@@ -156,30 +197,7 @@ const CoordinatorDashboard: React.FC = () => {
             <button onClick={() => setCurrentView('MENU')} className="mr-4 text-gray-600 hover:text-blue-600">
                 <ArrowLeft size={24} />
             </button>
-            <h2 className="text-2xl font-bold text-gray-900">Visão Geral</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-                <p className="text-gray-900 text-sm font-bold">Taxa de Ocupação</p>
-                <h3 className="text-3xl font-extrabold text-black">{occupancyRate}%</h3>
-                <p className="text-xs text-gray-500">{totalEnrolled} de {totalSpots} vagas</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500">
-                <p className="text-gray-900 text-sm font-bold">Fila de Espera</p>
-                <h3 className="text-3xl font-extrabold text-black">{waitlistTotal}</h3>
-                <p className="text-xs text-gray-500">Alunos aguardando</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
-                <p className="text-gray-900 text-sm font-bold">Solicitações Pendentes</p>
-                <h3 className="text-3xl font-extrabold text-black">{pendingRequests.length}</h3>
-                <p className="text-xs text-gray-500">Requerem atenção</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-                <p className="text-gray-900 text-sm font-bold">Alunos Ativos</p>
-                <h3 className="text-3xl font-extrabold text-black">{totalEnrolled}</h3>
-                <p className="text-xs text-gray-500">Matrículas confirmadas</p>
-            </div>
+            <h2 className="text-2xl font-bold text-gray-900">Visão Geral Detalhada</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -268,7 +286,7 @@ const CoordinatorDashboard: React.FC = () => {
                                             <ul className="list-disc list-inside mt-1">
                                                 {Object.entries(req.requestedChanges).map(([key, value]) => (
                                                     <li key={key}>
-                                                        <span className="capitalize">{key}:</span> {Array.isArray(value) ? value.join(', ') : value.toString()}
+                                                        <span className="capitalize">{key}:</span> {Array.isArray(value) ? value.join(', ') : value ? value.toString() : '-'}
                                                     </li>
                                                 ))}
                                             </ul>
@@ -312,7 +330,7 @@ const CoordinatorDashboard: React.FC = () => {
                     <button onClick={() => setCurrentView('MENU')} className="mr-4 text-gray-600 hover:text-blue-600">
                         <ArrowLeft size={24} />
                     </button>
-                    <h2 className="text-2xl font-bold text-gray-900">Logs de Auditoria</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Gestão de Registros (Auditoria)</h2>
                 </div>
                 <div className="relative">
                     <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
@@ -439,87 +457,212 @@ const CoordinatorDashboard: React.FC = () => {
                     </tbody>
                 </table>
              </div>
+        </div>
+    );
+  };
 
-             {isAddUserModalOpen && (
-                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in">
-                         <div className="flex justify-between items-center mb-6">
-                             <h3 className="text-xl font-bold text-gray-900">Adicionar Novo Membro</h3>
-                             <button onClick={() => setIsAddUserModalOpen(false)}><X size={24} className="text-gray-500"/></button>
-                         </div>
-                         <form onSubmit={handleAddUser} className="space-y-4">
-                             <div>
-                                 <label className="block text-sm font-bold text-gray-700 mb-1">Cargo</label>
-                                 <select 
-                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                                    value={newUserRole}
-                                    onChange={e => setNewUserRole(e.target.value as UserRole)}
-                                 >
-                                     <option value={UserRole.ANALYST}>Analista de Esportes</option>
-                                     <option value={UserRole.SECRETARY}>Secretaria</option>
-                                     <option value={UserRole.COORDINATOR}>Coordenador</option>
-                                 </select>
-                             </div>
-                             <div>
-                                 <label className="block text-sm font-bold text-gray-700 mb-1">Nome Completo</label>
-                                 <input 
-                                    required 
-                                    type="text" 
-                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                                    value={newUserData.name || ''}
-                                    onChange={e => setNewUserData({...newUserData, name: e.target.value})}
-                                 />
-                             </div>
-                             <div>
-                                 <label className="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
-                                 <input 
-                                    required 
-                                    type="email" 
-                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                                    value={newUserData.email || ''}
-                                    onChange={e => setNewUserData({...newUserData, email: e.target.value})}
-                                 />
-                             </div>
-                             <div>
-                                 <label className="block text-sm font-bold text-gray-700 mb-1">REF (Registro Funcional) <span className="text-red-500">*</span></label>
-                                 <input 
-                                    required 
-                                    type="text" 
-                                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                                    placeholder="000.000.0/0"
-                                    maxLength={11}
-                                    value={newUserData.ref || ''}
-                                    onChange={e => setNewUserData({...newUserData, ref: applyRefMask(e.target.value)})}
-                                 />
-                                 <p className="text-xs text-gray-500 mt-1">Obrigatório formato: 000.000.0/0</p>
-                             </div>
-                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Telefone</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                                        value={newUserData.phone || ''}
-                                        onChange={e => setNewUserData({...newUserData, phone: e.target.value})}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Celular</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                                        value={newUserData.cellphone || ''}
-                                        onChange={e => setNewUserData({...newUserData, cellphone: e.target.value})}
-                                    />
-                                </div>
-                             </div>
-                             <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mt-4">
-                                 Cadastrar Usuário
-                             </button>
-                         </form>
-                     </div>
-                 </div>
-             )}
+  const renderManageStudents = () => {
+    const studentList = users.filter(u => u.role === UserRole.STUDENT && (
+        u.name.toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+        u.cpf?.includes(userSearchTerm)
+    ));
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                    <button onClick={() => setCurrentView('MENU')} className="mr-4 text-gray-600 hover:text-blue-600">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <h2 className="text-2xl font-bold text-gray-900">Gestão de Alunos</h2>
+                </div>
+                <div className="flex gap-4">
+                     <div className="relative">
+                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por nome, CPF..." 
+                            className="pl-10 pr-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-64 shadow-sm bg-white text-gray-900 font-medium"
+                            value={userSearchTerm}
+                            onChange={(e) => setUserSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button 
+                        onClick={() => {
+                            setNewUserRole(UserRole.STUDENT);
+                            setIsAddUserModalOpen(true);
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center shadow-sm"
+                    >
+                        <Plus size={18} className="mr-2" /> Novo Aluno
+                    </button>
+                </div>
+             </div>
+
+             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <table className="w-full text-sm text-left text-black">
+                    <thead className="bg-gray-50 text-gray-900 font-bold uppercase">
+                        <tr>
+                            <th className="px-6 py-3">Nome</th>
+                            <th className="px-6 py-3">CPF</th>
+                            <th className="px-6 py-3">Contato</th>
+                            <th className="px-6 py-3">Responsável</th>
+                            <th className="px-6 py-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {studentList.map(student => (
+                            <tr key={student.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 font-bold text-gray-900">{student.name}</td>
+                                <td className="px-6 py-4 text-gray-700 font-medium">{student.cpf}</td>
+                                <td className="px-6 py-4 text-gray-700">
+                                    <div className="flex flex-col">
+                                        <span>{student.cellphone}</span>
+                                        <span className="text-xs text-gray-500">{student.email}</span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-gray-700">
+                                    {student.guardianName ? (
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">{student.guardianName}</span>
+                                            <span className="text-xs">{student.guardianPhone}</span>
+                                        </div>
+                                    ) : <span className="text-gray-400">-</span>}
+                                </td>
+                                <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                    <button 
+                                        onClick={() => handleDeleteUser(student.id)}
+                                        className="text-red-600 hover:bg-red-50 p-2 rounded transition-colors" 
+                                        title="Excluir Aluno"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        {studentList.length === 0 && (
+                            <tr><td colSpan={5} className="p-8 text-center text-gray-500">Nenhum aluno encontrado.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+             </div>
+        </div>
+    );
+  };
+
+  const renderWaitlist = () => {
+    const classesWithWaitlist = classes.filter(c => c.waitingListCount > 0);
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center">
+                <button onClick={() => setCurrentView('MENU')} className="mr-4 text-gray-600 hover:text-blue-600">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <AlertTriangle className="mr-3 text-orange-600" /> Fila de Espera Geral
+                </h2>
+            </div>
+
+            {classesWithWaitlist.length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-lg border border-dashed border-gray-300">
+                    <CheckCircle size={48} className="mx-auto mb-4 text-green-500 opacity-50" />
+                    <p className="text-lg font-bold text-gray-900">Nenhuma fila de espera ativa.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {classesWithWaitlist.map(cls => (
+                        <div key={cls.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-900">{cls.title}</h3>
+                                <p className="text-sm text-gray-600 font-medium">{cls.days.join('/')} • {cls.time}</p>
+                                <p className="text-xs text-blue-600 font-bold mt-1 uppercase">{cls.modality}</p>
+                            </div>
+                            <div className="text-center bg-orange-50 px-4 py-2 rounded-lg border border-orange-100">
+                                <span className="block text-2xl font-bold text-orange-600">{cls.waitingListCount}</span>
+                                <span className="text-xs text-orange-800 font-bold uppercase">Na Fila</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+  };
+
+  const renderSpaceManagement = () => {
+    const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    
+    // Helper to sort classes by time
+    const sortClassesByTime = (a: SportClass, b: SportClass) => {
+        return parseInt(a.time.split(':')[0]) - parseInt(b.time.split(':')[0]);
+    };
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                    <button onClick={() => setCurrentView('MENU')} className="mr-4 text-gray-600 hover:text-blue-600">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <h2 className="text-2xl font-bold text-gray-900">Gestão de Espaços</h2>
+                </div>
+            </div>
+
+            {/* Day Selector */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+                {days.map(day => (
+                    <button
+                        key={day}
+                        onClick={() => setSelectedDayForSpaces(day)}
+                        className={`px-4 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-colors ${
+                            selectedDayForSpaces === day 
+                            ? 'bg-blue-600 text-white shadow-md' 
+                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                        }`}
+                    >
+                        {day}
+                    </button>
+                ))}
+            </div>
+
+            {/* Locations Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                {LOCATIONS.map(location => {
+                    const locationClasses = classes
+                        .filter(c => c.location === location && c.days.includes(selectedDayForSpaces))
+                        .sort(sortClassesByTime);
+
+                    return (
+                        <div key={location} className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
+                            <div className="p-3 bg-gray-50 border-b border-gray-200 font-bold text-center text-gray-800">
+                                {location}
+                            </div>
+                            <div className="p-3 space-y-3 flex-1">
+                                {locationClasses.length > 0 ? (
+                                    locationClasses.map(cls => (
+                                        <div key={cls.id} className="bg-blue-50 border border-blue-100 p-2 rounded-lg text-xs">
+                                            <div className="font-bold text-blue-900">{cls.time}</div>
+                                            <div className="font-bold text-gray-800 truncate" title={cls.title}>{cls.title}</div>
+                                            <div className="text-gray-600 mt-1">{cls.analystName}</div>
+                                            <div className="mt-1 flex justify-between items-center">
+                                                <span className="bg-white px-1 rounded text-blue-600 border border-blue-100">{cls.modality}</span>
+                                                <span className={`${cls.enrolledCount >= cls.capacity ? 'text-red-600' : 'text-green-600'} font-bold`}>
+                                                    {cls.enrolledCount}/{cls.capacity}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center text-gray-400 text-xs py-4 italic">
+                                        Livre
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
   };
@@ -577,62 +720,112 @@ const CoordinatorDashboard: React.FC = () => {
         </div>
       </div>
       
-      {pendingRequests.length > 0 && (
-         <div 
+      {/* Quick Stats Grid - Matching Secretary Style */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+          <p className="text-gray-900 text-sm font-bold">Taxa de Ocupação</p>
+          <h3 className="text-3xl font-extrabold text-black">{occupancyRate}%</h3>
+        </div>
+        <div 
             onClick={() => setCurrentView('REQUESTS')}
-            className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 cursor-pointer hover:bg-yellow-100 transition-colors flex items-center justify-between"
-         >
-             <div className="flex items-center">
-                <AlertTriangle className="text-yellow-600 mr-3" size={24} />
-                <div>
-                    <h3 className="text-yellow-800 font-bold">Atenção Necessária</h3>
-                    <p className="text-yellow-700 text-sm">Existem {pendingRequests.length} solicitações aguardando sua aprovação.</p>
-                </div>
-             </div>
-             <ArrowRight className="text-yellow-600" />
-         </div>
-      )}
+            className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 cursor-pointer hover:shadow-md transition-all"
+        >
+          <p className="text-gray-900 text-sm font-bold">Solicitações Pendentes</p>
+          <h3 className="text-3xl font-extrabold text-black">{pendingRequests.length}</h3>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
+          <p className="text-gray-900 text-sm font-bold">Equipe Ativa</p>
+          <h3 className="text-3xl font-extrabold text-black">{totalStaff}</h3>
+        </div>
+        <div 
+            onClick={() => setCurrentView('WAITLIST')}
+            className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500 cursor-pointer hover:shadow-md transition-all"
+        >
+          <p className="text-gray-900 text-sm font-bold">Fila de Espera</p>
+          <h3 className="text-3xl font-extrabold text-black">{waitlistTotal}</h3>
+        </div>
+      </div>
 
+      {/* Navigation Cards Grid - Matching Secretary Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <button onClick={() => setCurrentView('OVERVIEW')} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left group">
-            <div className="bg-blue-50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
-                <BarChart2 className="text-blue-600" size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Visão Geral</h3>
-            <p className="text-gray-600 text-sm mt-1">Estatísticas e indicadores.</p>
+        
+        <button 
+          onClick={() => setCurrentView('REQUESTS')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-yellow-300 transition-all text-left group"
+        >
+          <div className="bg-yellow-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-yellow-100 transition-colors">
+            <ClipboardCheck className="text-yellow-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Solicitações</h3>
+          <p className="text-gray-800 text-sm">Aprovar turmas, vagas e alterações.</p>
         </button>
 
-        <button onClick={() => setCurrentView('REQUESTS')} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-yellow-300 transition-all text-left group">
-            <div className="bg-yellow-50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:bg-yellow-100 transition-colors">
-                <ClipboardCheck className="text-yellow-600" size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Solicitações</h3>
-            <p className="text-gray-600 text-sm mt-1">Aprovar turmas e vagas.</p>
+        <button 
+          onClick={() => setCurrentView('MANAGE_STUDENTS')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition-all text-left group"
+        >
+          <div className="bg-green-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
+            <GraduationCap className="text-green-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Alunos</h3>
+          <p className="text-gray-800 text-sm">Cadastrar, editar e excluir alunos.</p>
         </button>
 
-        <button onClick={() => setCurrentView('AUDIT')} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all text-left group">
-            <div className="bg-gray-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:bg-gray-200 transition-colors">
-                <ShieldCheck className="text-gray-600" size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Auditoria</h3>
-            <p className="text-gray-600 text-sm mt-1">Logs de sistema.</p>
+        <button 
+          onClick={() => setCurrentView('MANAGE_STAFF')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all text-left group"
+        >
+          <div className="bg-purple-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-100 transition-colors">
+            <Briefcase className="text-purple-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Equipe</h3>
+          <p className="text-gray-800 text-sm">Gerenciar Analistas e Secretaria.</p>
         </button>
 
-        <button onClick={() => setCurrentView('MANAGE_STUDENTS')} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition-all text-left group">
-            <div className="bg-green-50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
-                <GraduationCap className="text-green-600" size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Alunos</h3>
-            <p className="text-gray-600 text-sm mt-1">Gerenciar cadastros.</p>
+        <button 
+          onClick={() => setCurrentView('SPACE_MANAGEMENT')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-indigo-300 transition-all text-left group"
+        >
+          <div className="bg-indigo-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition-colors">
+            <LayoutTemplate className="text-indigo-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Espaços</h3>
+          <p className="text-gray-800 text-sm">Visualizar ocupação de salas e ginásios.</p>
         </button>
 
-        <button onClick={() => setCurrentView('MANAGE_STAFF')} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all text-left group">
-            <div className="bg-purple-50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-100 transition-colors">
-                <Briefcase className="text-purple-600" size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Equipe</h3>
-            <p className="text-gray-600 text-sm mt-1">Analistas e Secretaria.</p>
+        <button 
+          onClick={() => setCurrentView('WAITLIST')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all text-left group"
+        >
+          <div className="bg-orange-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+            <AlertTriangle className="text-orange-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Fila de Espera</h3>
+          <p className="text-gray-800 text-sm">Monitorar filas por turma.</p>
         </button>
+
+        <button 
+          onClick={() => setCurrentView('AUDIT')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all text-left group"
+        >
+          <div className="bg-gray-100 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-gray-200 transition-colors">
+            <ShieldCheck className="text-gray-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Auditoria & Logs</h3>
+          <p className="text-gray-800 text-sm">Histórico de ações no sistema.</p>
+        </button>
+
+        <button 
+          onClick={() => setCurrentView('OVERVIEW')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left group"
+        >
+          <div className="bg-blue-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
+            <BarChart2 className="text-blue-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Relatórios e Gráficos</h3>
+          <p className="text-gray-800 text-sm">Estatísticas detalhadas.</p>
+        </button>
+
       </div>
     </div>
   );
@@ -644,11 +837,229 @@ const CoordinatorDashboard: React.FC = () => {
       {currentView === 'AUDIT' && renderAudit()}
       {currentView === 'REQUESTS' && renderRequests()}
       {currentView === 'MANAGE_STAFF' && renderManageStaff()}
-      {/* Fallback for not implemented views in this simplified example */}
-      {(currentView !== 'MENU' && currentView !== 'OVERVIEW' && currentView !== 'AUDIT' && currentView !== 'REQUESTS' && currentView !== 'MANAGE_STAFF') && (
+      {currentView === 'MANAGE_STUDENTS' && renderManageStudents()}
+      {currentView === 'SPACE_MANAGEMENT' && renderSpaceManagement()}
+      {currentView === 'WAITLIST' && renderWaitlist()}
+      
+      {/* Fallback */}
+      {(currentView !== 'MENU' && currentView !== 'OVERVIEW' && currentView !== 'AUDIT' && 
+        currentView !== 'REQUESTS' && currentView !== 'MANAGE_STAFF' && 
+        currentView !== 'MANAGE_STUDENTS' && currentView !== 'SPACE_MANAGEMENT' && 
+        currentView !== 'WAITLIST') && (
          <div className="text-center p-12">
             <button onClick={() => setCurrentView('MENU')} className="mb-4 text-blue-600 flex items-center justify-center mx-auto font-bold"><ArrowLeft className="mr-2"/> Voltar</button>
             <h2 className="text-xl text-gray-500">Módulo em desenvolvimento...</h2>
+         </div>
+      )}
+
+      {/* GLOBAL ADD USER MODAL */}
+      {isAddUserModalOpen && (
+         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+             <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in overflow-y-auto max-h-[90vh]">
+                 <div className="flex justify-between items-center mb-6">
+                     <h3 className="text-xl font-bold text-gray-900">
+                         {newUserRole === UserRole.STUDENT ? 'Cadastrar Novo Aluno' : 'Adicionar Membro da Equipe'}
+                     </h3>
+                     <button onClick={() => setIsAddUserModalOpen(false)}><X size={24} className="text-gray-500"/></button>
+                 </div>
+                 <form onSubmit={handleAddUser} className="space-y-4">
+                     {/* Role Selector (only if not student flow, or allow switching) */}
+                     {newUserRole !== UserRole.STUDENT && (
+                         <div>
+                             <label className="block text-sm font-bold text-gray-700 mb-1">Cargo</label>
+                             <select 
+                                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                value={newUserRole}
+                                onChange={e => setNewUserRole(e.target.value as UserRole)}
+                             >
+                                 <option value={UserRole.ANALYST}>Analista de Esportes</option>
+                                 <option value={UserRole.SECRETARY}>Secretaria</option>
+                                 <option value={UserRole.COORDINATOR}>Coordenador</option>
+                             </select>
+                         </div>
+                     )}
+
+                     {/* Common Fields */}
+                     <div>
+                         <label className="block text-sm font-bold text-gray-700 mb-1">Nome Completo</label>
+                         <input 
+                            required 
+                            type="text" 
+                            className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                            value={newUserData.name || ''}
+                            onChange={e => setNewUserData({...newUserData, name: e.target.value})}
+                         />
+                     </div>
+                     <div>
+                         <label className="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
+                         <input 
+                            required={newUserRole !== UserRole.STUDENT} // Email optional for students in this simplified admin flow? No, usually required.
+                            type="email" 
+                            className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                            value={newUserData.email || ''}
+                            onChange={e => setNewUserData({...newUserData, email: e.target.value})}
+                            placeholder={newUserRole === UserRole.STUDENT ? "Opcional ou gerado auto" : "Obrigatório"}
+                         />
+                     </div>
+
+                     {/* STAFF SPECIFIC */}
+                     {newUserRole !== UserRole.STUDENT && (
+                         <div>
+                             <label className="block text-sm font-bold text-gray-700 mb-1">REF (Registro Funcional) <span className="text-red-500">*</span></label>
+                             <input 
+                                required 
+                                type="text" 
+                                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                placeholder="000.000.0/0"
+                                maxLength={11}
+                                value={newUserData.ref || ''}
+                                onChange={e => setNewUserData({...newUserData, ref: applyRefMask(e.target.value)})}
+                             />
+                             <p className="text-xs text-gray-500 mt-1">Formato obrigatório: 000.000.0/0</p>
+                         </div>
+                     )}
+
+                     {/* STUDENT SPECIFIC */}
+                     {newUserRole === UserRole.STUDENT && (
+                         <>
+                             <div>
+                                 <label className="block text-sm font-bold text-gray-700 mb-1">CPF <span className="text-red-500">*</span></label>
+                                 <input 
+                                     required 
+                                     type="text" 
+                                     className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                     placeholder="000.000.000-00"
+                                     value={newUserData.cpf || ''}
+                                     onChange={e => setNewUserData({...newUserData, cpf: applyCPFMask(e.target.value)})}
+                                     maxLength={14}
+                                 />
+                             </div>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Data de Nascimento <span className="text-red-500">*</span></label>
+                                    <input 
+                                        required 
+                                        type="date" 
+                                        className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                        value={newUserData.birthDate || ''}
+                                        onChange={handleBirthDateChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Idade</label>
+                                    <input 
+                                        disabled readOnly
+                                        type="text" 
+                                        className="w-full p-2 border border-gray-300 bg-gray-100 rounded-lg text-gray-600 text-center"
+                                        value={newUserData.birthDate ? `${calculateAge(newUserData.birthDate)} anos` : ''}
+                                    />
+                                </div>
+                             </div>
+                         </>
+                     )}
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Telefone</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                value={newUserData.phone || ''}
+                                onChange={e => setNewUserData({...newUserData, phone: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Celular</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                value={newUserData.cellphone || ''}
+                                onChange={e => setNewUserData({...newUserData, cellphone: e.target.value})}
+                            />
+                        </div>
+                     </div>
+
+                     {/* STUDENT ADDRESS */}
+                     {newUserRole === UserRole.STUDENT && (
+                        <div className="grid grid-cols-1 gap-4">
+                             <div>
+                                 <label className="block text-sm font-bold text-gray-700 mb-1">Endereço</label>
+                                 <div className="relative">
+                                    <Home size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                                    <input 
+                                        type="text" 
+                                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                        placeholder="Logradouro, Número"
+                                        value={newUserData.address || ''}
+                                        onChange={e => setNewUserData({...newUserData, address: e.target.value})}
+                                    />
+                                 </div>
+                             </div>
+                             <div>
+                                 <label className="block text-sm font-bold text-gray-700 mb-1">Bairro</label>
+                                 <div className="relative">
+                                    <MapPin size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                                    <input 
+                                        type="text" 
+                                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                                        placeholder="Bairro"
+                                        value={newUserData.neighborhood || ''}
+                                        onChange={e => setNewUserData({...newUserData, neighborhood: e.target.value})}
+                                    />
+                                 </div>
+                             </div>
+                        </div>
+                     )}
+
+                     {/* GUARDIAN INFO FOR MINORS */}
+                     {newUserRole === UserRole.STUDENT && isMinor && (
+                         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-2">
+                             <h4 className="font-bold text-orange-800 mb-2 text-sm flex items-center">
+                                 <Users size={16} className="mr-2"/> Dados do Responsável (Menor de 18)
+                             </h4>
+                             <div className="space-y-3">
+                                 <div>
+                                     <label className="block text-xs font-bold text-gray-700 mb-1">Nome do Responsável <span className="text-red-500">*</span></label>
+                                     <input 
+                                        required 
+                                        type="text" 
+                                        className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 text-sm"
+                                        value={newUserData.guardianName || ''}
+                                        onChange={e => setNewUserData({...newUserData, guardianName: e.target.value})}
+                                     />
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-2">
+                                     <div>
+                                         <label className="block text-xs font-bold text-gray-700 mb-1">CPF Resp. <span className="text-red-500">*</span></label>
+                                         <input 
+                                            required 
+                                            type="text" 
+                                            className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 text-sm"
+                                            value={newUserData.guardianCpf || ''}
+                                            onChange={e => setNewUserData({...newUserData, guardianCpf: applyCPFMask(e.target.value)})}
+                                            maxLength={14}
+                                         />
+                                     </div>
+                                     <div>
+                                         <label className="block text-xs font-bold text-gray-700 mb-1">Tel. Resp. <span className="text-red-500">*</span></label>
+                                         <input 
+                                            required 
+                                            type="text" 
+                                            className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 text-sm"
+                                            value={newUserData.guardianPhone || ''}
+                                            onChange={e => setNewUserData({...newUserData, guardianPhone: e.target.value})}
+                                         />
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     )}
+
+                     <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mt-4 shadow-md">
+                         {newUserRole === UserRole.STUDENT ? 'Cadastrar Aluno' : 'Cadastrar Membro'}
+                     </button>
+                 </form>
+             </div>
          </div>
       )}
     </div>
