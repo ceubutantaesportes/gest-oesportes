@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, SportClass, Enrollment, AttendanceRecord, EnrollmentStatus, ClassUpdateRequest, RequestStatus, RequestType, AuditLog, Notification, UserRole } from '../types';
 import { MOCK_USERS, MOCK_CLASSES, MOCK_ENROLLMENTS, MOCK_ATTENDANCE, MOCK_REQUESTS, MOCK_AUDIT_LOGS, MOCK_NOTIFICATIONS } from '../constants';
@@ -122,6 +121,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // --- AUTOMATIC PERSISTENCE (useEffect) ---
   // This ensures that ANY change to state is immediately saved to localStorage
   // solving the issue of data disappearing on refresh.
+  
+  // SYNC ACROSS TABS using 'storage' event
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'app_users' && e.newValue) setUsers(JSON.parse(e.newValue));
+        if (e.key === 'app_classes' && e.newValue) setClasses(JSON.parse(e.newValue));
+        if (e.key === 'app_enrollments' && e.newValue) setEnrollments(JSON.parse(e.newValue));
+        if (e.key === 'app_attendance' && e.newValue) setAttendance(JSON.parse(e.newValue));
+        if (e.key === 'app_requests' && e.newValue) setUpdateRequests(JSON.parse(e.newValue));
+        if (e.key === 'app_audit' && e.newValue) setAuditLogs(JSON.parse(e.newValue));
+        if (e.key === 'app_notifications' && e.newValue) setNotifications(JSON.parse(e.newValue));
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   
   useEffect(() => { saveToStorage('app_users', users); }, [users]);
   useEffect(() => { saveToStorage('app_classes', classes); }, [classes]);
@@ -475,20 +490,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Waitlist Promotion Logic
     let nextStudent = null;
-    
-    // Only check for next student if the CANCELLED student was CONFIRMED (opening a spot)
     if (enrollment.status === EnrollmentStatus.CONFIRMED) {
-        // Find students on waitlist for THIS class
-        // Use current 'enrollments' state (which still has the removed one, so filter it out)
-        // Actually, we already removed it from state setter, but 'enrollments' const here is stale closure from render
-        const waitlist = enrollments.filter(e => 
-          e.classId === targetClass.id && 
-          e.status === EnrollmentStatus.WAITING_LIST && 
-          e.id !== enrollmentId // exclude self just in case
-        );
+        // Find students on waitlist
+        const waitlist = enrollments
+            .filter(e => e.classId === targetClass.id && e.status === EnrollmentStatus.WAITING_LIST && e.id !== enrollmentId)
+            // SORT BY DATE (Oldest First) to ensure fair queue jumping
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             
         if (waitlist.length > 0) {
-            const nextEnrollment = waitlist[0]; // Assumes first in array is first in line
+            const nextEnrollment = waitlist[0]; // First in line
             const user = users.find(u => u.id === nextEnrollment.studentId);
             if (user) {
                 nextStudent = user;
