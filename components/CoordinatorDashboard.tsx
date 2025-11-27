@@ -117,6 +117,17 @@ const CoordinatorDashboard: React.FC = () => {
     return v;
   };
 
+  const applyDateMask = (value: string) => {
+    let v = value.replace(/\D/g, ""); // Remove non-digits
+    v = v.slice(0, 8); // Limit to 8 digits
+    
+    // Apply formatting DD/MM/AAAA
+    v = v.replace(/(\d{2})(\d)/, "$1/$2");
+    v = v.replace(/(\d{2})(\d)/, "$1/$2");
+    
+    return v;
+  };
+
   const calculateAge = (birthDate: string) => {
     const today = new Date();
     const birth = new Date(birthDate);
@@ -128,22 +139,93 @@ const CoordinatorDashboard: React.FC = () => {
     return age;
   };
 
+  const calculateAgeFromBrDate = (dateStr: string) => {
+      if (dateStr.length !== 10) return 0;
+      const [day, month, year] = dateStr.split('/').map(Number);
+      const today = new Date();
+      const birth = new Date(year, month - 1, day);
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+          age--;
+      }
+      return age;
+  }
+
   const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const date = e.target.value;
-      setNewUserData({...newUserData, birthDate: date});
-      if (date) {
-          const age = calculateAge(date);
+      const dateVal = applyDateMask(e.target.value);
+      setNewUserData({...newUserData, birthDate: dateVal});
+      
+      if (dateVal.length === 10) {
+          const age = calculateAgeFromBrDate(dateVal);
           setIsMinor(age < 18);
+      } else {
+          setIsMinor(false);
       }
   };
 
-  const handleAddUser = (e: React.FormEvent) => {
+  // Open modal for editing a user
+  const openEditUserModal = (user: User) => {
+      setEditingUser(user);
+      setNewUserRole(user.role);
+      
+      // Convert stored ISO date (yyyy-mm-dd) to BR date (dd/mm/yyyy) for the input
+      let brBirthDate = '';
+      if (user.birthDate) {
+          const [year, month, day] = user.birthDate.split('-');
+          brBirthDate = `${day}/${month}/${year}`;
+      }
+
+      setNewUserData({
+          name: user.name,
+          email: user.email,
+          cpf: user.cpf,
+          ref: user.ref,
+          birthDate: brBirthDate,
+          phone: user.phone,
+          cellphone: user.cellphone,
+          address: user.address,
+          neighborhood: user.neighborhood,
+          guardianName: user.guardianName,
+          guardianCpf: user.guardianCpf,
+          guardianPhone: user.guardianPhone,
+          guardianEmail: user.guardianEmail
+      });
+
+      if (user.birthDate) {
+          const age = calculateAge(user.birthDate);
+          setIsMinor(age < 18);
+      } else {
+          setIsMinor(false);
+      }
+
+      setIsAddUserModalOpen(true);
+  };
+
+  // Open modal for creating a new user
+  const openCreateUserModal = (role: UserRole) => {
+      setEditingUser(null);
+      setNewUserRole(role);
+      setNewUserData({
+          name: '', email: '', cpf: '', birthDate: '', ref: '', 
+          phone: '', cellphone: '', address: '', neighborhood: '', 
+          guardianName: '', guardianCpf: '', guardianEmail: '', guardianPhone: ''
+      });
+      setIsMinor(false);
+      setIsAddUserModalOpen(true);
+  };
+
+  const handleUserFormSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       
       // Validação Específica por Cargo
       if (newUserRole === UserRole.STUDENT) {
         if (!newUserData.cpf || !newUserData.birthDate) {
             alert('CPF e Data de Nascimento são obrigatórios para alunos.');
+            return;
+        }
+        if (newUserData.birthDate.length !== 10) {
+            alert('Data de nascimento inválida. Use o formato DD/MM/AAAA.');
             return;
         }
         if (isMinor) {
@@ -164,33 +246,60 @@ const CoordinatorDashboard: React.FC = () => {
         }
       }
 
-      const newUser: User = {
-          id: `u_${Date.now()}`,
-          role: newUserRole,
-          name: newUserData.name!,
-          email: newUserData.email || `user.${Date.now()}@ceusistema.com.br`,
-          password: '123456', // Default password
-          cpf: newUserData.cpf,
-          ref: newUserData.ref,
-          birthDate: newUserData.birthDate,
-          phone: newUserData.phone,
-          cellphone: newUserData.cellphone,
-          address: newUserData.address,
-          neighborhood: newUserData.neighborhood,
-          guardianName: isMinor ? newUserData.guardianName : undefined,
-          guardianCpf: isMinor ? newUserData.guardianCpf : undefined,
-          guardianPhone: isMinor ? newUserData.guardianPhone : undefined,
-          guardianEmail: isMinor ? newUserData.guardianEmail : undefined
-      };
+      // Prepare date conversion if present (BR -> ISO)
+      let isoBirthDate = newUserData.birthDate;
+      if (newUserData.birthDate && newUserData.birthDate.includes('/')) {
+         const [day, month, year] = newUserData.birthDate.split('/');
+         isoBirthDate = `${year}-${month}-${day}`;
+      }
+
+      if (editingUser) {
+          // UPDATE EXISTING USER
+          const updatedUser: User = {
+              ...editingUser,
+              name: newUserData.name!,
+              email: newUserData.email!,
+              // Password is NOT updated here to avoid reset, handled in profile
+              cpf: newUserData.cpf,
+              ref: newUserData.ref,
+              birthDate: isoBirthDate,
+              phone: newUserData.phone,
+              cellphone: newUserData.cellphone,
+              address: newUserData.address,
+              neighborhood: newUserData.neighborhood,
+              role: newUserRole, // Allow role change if needed
+              guardianName: isMinor ? newUserData.guardianName : undefined,
+              guardianCpf: isMinor ? newUserData.guardianCpf : undefined,
+              guardianPhone: isMinor ? newUserData.guardianPhone : undefined,
+              guardianEmail: isMinor ? newUserData.guardianEmail : undefined
+          };
+          updateUser(updatedUser);
+          alert('Dados do usuário atualizados com sucesso!');
+      } else {
+          // CREATE NEW USER
+          const newUser: User = {
+              id: `u_${Date.now()}`,
+              role: newUserRole,
+              name: newUserData.name!,
+              email: newUserData.email || `user.${Date.now()}@ceusistema.com.br`,
+              password: '123456', // Default password
+              cpf: newUserData.cpf,
+              ref: newUserData.ref,
+              birthDate: isoBirthDate,
+              phone: newUserData.phone,
+              cellphone: newUserData.cellphone,
+              address: newUserData.address,
+              neighborhood: newUserData.neighborhood,
+              guardianName: isMinor ? newUserData.guardianName : undefined,
+              guardianCpf: isMinor ? newUserData.guardianCpf : undefined,
+              guardianPhone: isMinor ? newUserData.guardianPhone : undefined,
+              guardianEmail: isMinor ? newUserData.guardianEmail : undefined
+          };
+          addUser(newUser);
+          alert('Usuário cadastrado com sucesso!');
+      }
       
-      addUser(newUser);
       setIsAddUserModalOpen(false);
-      setNewUserData({
-          name: '', email: '', cpf: '', birthDate: '', ref: '', 
-          phone: '', cellphone: '', address: '', neighborhood: '', 
-          guardianName: '', guardianCpf: '', guardianEmail: '', guardianPhone: ''
-      });
-      alert('Usuário cadastrado com sucesso!');
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -409,10 +518,7 @@ const CoordinatorDashboard: React.FC = () => {
                         />
                     </div>
                     <button 
-                        onClick={() => {
-                            setNewUserRole(UserRole.ANALYST);
-                            setIsAddUserModalOpen(true);
-                        }}
+                        onClick={() => openCreateUserModal(UserRole.ANALYST)}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center shadow-sm"
                     >
                         <Plus size={18} className="mr-2" /> Adicionar Novo
@@ -449,7 +555,11 @@ const CoordinatorDashboard: React.FC = () => {
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 text-right flex justify-end gap-2">
-                                    <button className="text-blue-600 hover:bg-blue-50 p-2 rounded" title="Editar">
+                                    <button 
+                                        onClick={() => openEditUserModal(staff)}
+                                        className="text-blue-600 hover:bg-blue-50 p-2 rounded" 
+                                        title="Editar"
+                                    >
                                         <UserCog size={18} />
                                     </button>
                                     <button 
@@ -496,10 +606,7 @@ const CoordinatorDashboard: React.FC = () => {
                         />
                     </div>
                     <button 
-                        onClick={() => {
-                            setNewUserRole(UserRole.STUDENT);
-                            setIsAddUserModalOpen(true);
-                        }}
+                        onClick={() => openCreateUserModal(UserRole.STUDENT)}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center shadow-sm"
                     >
                         <Plus size={18} className="mr-2" /> Novo Aluno
@@ -538,6 +645,13 @@ const CoordinatorDashboard: React.FC = () => {
                                     ) : <span className="text-gray-400">-</span>}
                                 </td>
                                 <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                    <button 
+                                        onClick={() => openEditUserModal(student)}
+                                        className="text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors" 
+                                        title="Editar Aluno"
+                                    >
+                                        <UserCog size={18} />
+                                    </button>
                                     <button 
                                         onClick={() => handleDeleteUser(student.id)}
                                         className="text-red-600 hover:bg-red-50 p-2 rounded transition-colors" 
@@ -934,17 +1048,17 @@ const CoordinatorDashboard: React.FC = () => {
          </div>
       )}
 
-      {/* GLOBAL ADD USER MODAL */}
+      {/* GLOBAL ADD/EDIT USER MODAL */}
       {isAddUserModalOpen && (
          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
              <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in overflow-y-auto max-h-[90vh]">
                  <div className="flex justify-between items-center mb-6">
                      <h3 className="text-xl font-bold text-gray-900">
-                         {newUserRole === UserRole.STUDENT ? 'Cadastrar Novo Aluno' : 'Adicionar Membro da Equipe'}
+                         {editingUser ? 'Editar Usuário' : (newUserRole === UserRole.STUDENT ? 'Cadastrar Novo Aluno' : 'Adicionar Membro da Equipe')}
                      </h3>
                      <button onClick={() => setIsAddUserModalOpen(false)}><X size={24} className="text-gray-500"/></button>
                  </div>
-                 <form onSubmit={handleAddUser} className="space-y-4">
+                 <form onSubmit={handleUserFormSubmit} className="space-y-4">
                      {/* Role Selector (only if not student flow, or allow switching) */}
                      {newUserRole !== UserRole.STUDENT && (
                          <div>
@@ -1021,10 +1135,12 @@ const CoordinatorDashboard: React.FC = () => {
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Data de Nascimento <span className="text-red-500">*</span></label>
                                     <input 
                                         required 
-                                        type="date" 
+                                        type="text" 
+                                        placeholder="DD/MM/AAAA"
                                         className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900"
                                         value={newUserData.birthDate || ''}
                                         onChange={handleBirthDateChange}
+                                        maxLength={10}
                                     />
                                 </div>
                                 <div>
@@ -1033,7 +1149,7 @@ const CoordinatorDashboard: React.FC = () => {
                                         disabled readOnly
                                         type="text" 
                                         className="w-full p-2 border border-gray-300 bg-gray-100 rounded-lg text-gray-600 text-center"
-                                        value={newUserData.birthDate ? `${calculateAge(newUserData.birthDate)} anos` : ''}
+                                        value={newUserData.birthDate && newUserData.birthDate.length === 10 ? `${calculateAgeFromBrDate(newUserData.birthDate)} anos` : ''}
                                     />
                                 </div>
                              </div>
@@ -1138,7 +1254,7 @@ const CoordinatorDashboard: React.FC = () => {
                      )}
 
                      <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mt-4 shadow-md">
-                         {newUserRole === UserRole.STUDENT ? 'Cadastrar Aluno' : 'Cadastrar Membro'}
+                         {editingUser ? 'Salvar Alterações' : (newUserRole === UserRole.STUDENT ? 'Cadastrar Aluno' : 'Cadastrar Membro')}
                      </button>
                  </form>
              </div>

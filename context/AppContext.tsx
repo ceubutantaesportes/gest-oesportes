@@ -109,21 +109,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (e) { return MOCK_NOTIFICATIONS; }
   });
 
+  // Helper for Safe Storage Saving (prevents crashes if quota exceeded)
+  const saveToStorage = (key: string, data: any) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        console.error(`Erro ao salvar ${key} no LocalStorage (provavelmente cheio):`, e);
+        // Em um app real, aqui exibiríamos um aviso ao usuário
+    }
+  };
+
   // --- AUTOMATIC PERSISTENCE (useEffect) ---
   // This ensures that ANY change to state is immediately saved to localStorage
   // solving the issue of data disappearing on refresh.
-  useEffect(() => { localStorage.setItem('app_users', JSON.stringify(users)); }, [users]);
-  useEffect(() => { localStorage.setItem('app_classes', JSON.stringify(classes)); }, [classes]);
-  useEffect(() => { localStorage.setItem('app_enrollments', JSON.stringify(enrollments)); }, [enrollments]);
-  useEffect(() => { localStorage.setItem('app_attendance', JSON.stringify(attendance)); }, [attendance]);
-  useEffect(() => { localStorage.setItem('app_requests', JSON.stringify(updateRequests)); }, [updateRequests]);
-  useEffect(() => { localStorage.setItem('app_audit', JSON.stringify(auditLogs)); }, [auditLogs]);
-  useEffect(() => { localStorage.setItem('app_notifications', JSON.stringify(notifications)); }, [notifications]);
+  
+  useEffect(() => { saveToStorage('app_users', users); }, [users]);
+  useEffect(() => { saveToStorage('app_classes', classes); }, [classes]);
+  useEffect(() => { saveToStorage('app_enrollments', enrollments); }, [enrollments]);
+  useEffect(() => { saveToStorage('app_attendance', attendance); }, [attendance]);
+  useEffect(() => { saveToStorage('app_requests', updateRequests); }, [updateRequests]);
+  
+  // LIMIT Logs and Notifications to prevent storage overflow
+  useEffect(() => { 
+      // Keep only last 500 logs to save space
+      const limitedLogs = auditLogs.slice(0, 500); 
+      saveToStorage('app_audit', limitedLogs); 
+  }, [auditLogs]);
+  
+  useEffect(() => { 
+      // Keep only last 200 notifications
+      const limitedNotifications = notifications.slice(0, 200);
+      saveToStorage('app_notifications', limitedNotifications); 
+  }, [notifications]);
 
   // Persist Current User Session
   useEffect(() => {
     if (currentUser) {
-        localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
+        saveToStorage('app_currentUser', currentUser);
     } else {
         localStorage.removeItem('app_currentUser');
     }
@@ -140,7 +162,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         details,
         timestamp: new Date().toISOString()
     };
-    setAuditLogs(prev => [newLog, ...prev]);
+    // Limit in-memory state too to prevent bloat
+    setAuditLogs(prev => {
+        const updated = [newLog, ...prev];
+        return updated.slice(0, 500); // Max 500 logs
+    });
   };
 
   const login = (email: string, password: string) => {
@@ -355,7 +381,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             read: false,
             createdAt: new Date().toISOString()
         }));
-        setNotifications(prev => [...newNotifications, ...prev]);
+        setNotifications(prev => {
+            const updated = [...newNotifications, ...prev];
+            return updated.slice(0, 200); // Limit size
+        });
 
         return { 
             success: false, 
@@ -404,7 +433,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             read: false,
             createdAt: new Date().toISOString()
         };
-        setNotifications(prev => [newNotification, ...prev]);
+        setNotifications(prev => {
+            const updated = [newNotification, ...prev];
+            return updated.slice(0, 200);
+        });
     }
 
     return { 

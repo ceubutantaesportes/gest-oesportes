@@ -88,6 +88,17 @@ const SecretaryDashboard: React.FC = () => {
     return v;
   };
 
+  const applyDateMask = (value: string) => {
+    let v = value.replace(/\D/g, ""); // Remove non-digits
+    v = v.slice(0, 8); // Limit to 8 digits
+    
+    // Apply formatting DD/MM/AAAA
+    v = v.replace(/(\d{2})(\d)/, "$1/$2");
+    v = v.replace(/(\d{2})(\d)/, "$1/$2");
+    
+    return v;
+  };
+
   const handleEnroll = () => {
     if (selectedStudentId && selectedClassId) {
       const result = enrollStudent(selectedStudentId, selectedClassId);
@@ -143,12 +154,28 @@ const SecretaryDashboard: React.FC = () => {
     return age;
   };
 
+  const calculateAgeFromBrDate = (dateStr: string) => {
+      if (dateStr.length !== 10) return 0;
+      const [day, month, year] = dateStr.split('/').map(Number);
+      const today = new Date();
+      const birth = new Date(year, month - 1, day);
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+          age--;
+      }
+      return age;
+  }
+
   const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const date = e.target.value;
-      setNewStudentData({...newStudentData, birthDate: date});
-      if (date) {
-          const age = calculateAge(date);
+      const dateVal = applyDateMask(e.target.value);
+      setNewStudentData({...newStudentData, birthDate: dateVal});
+      
+      if (dateVal.length === 10) {
+          const age = calculateAgeFromBrDate(dateVal);
           setIsMinor(age < 18);
+      } else {
+          setIsMinor(false);
       }
   };
 
@@ -164,6 +191,11 @@ const SecretaryDashboard: React.FC = () => {
         return;
     }
 
+    if (newStudentData.birthDate.length !== 10) {
+        alert("Data de nascimento inválida. Use o formato DD/MM/AAAA.");
+        return;
+    }
+
     if (isMinor) {
         if (!newStudentData.guardianName || !newStudentData.guardianCpf || !newStudentData.guardianPhone || !newStudentData.guardianEmail) {
             alert("Para menores de 18 anos, todos os dados do responsável são obrigatórios.");
@@ -175,13 +207,17 @@ const SecretaryDashboard: React.FC = () => {
         }
     }
 
+    // Convert BR Date (dd/mm/yyyy) to ISO (yyyy-mm-dd) for storage
+    const [day, month, year] = newStudentData.birthDate.split('/');
+    const isoBirthDate = `${year}-${month}-${day}`;
+
     const newUser: User = {
         id: `u_${Date.now()}`,
         role: UserRole.STUDENT,
         name: newStudentData.name!,
         email: newStudentData.email || `aluno.${Date.now()}@sememail.com`,
         cpf: newStudentData.cpf,
-        birthDate: newStudentData.birthDate,
+        birthDate: isoBirthDate,
         phone: newStudentData.phone,
         cellphone: newStudentData.cellphone,
         password: '123456', // Senha padrão
@@ -734,11 +770,13 @@ const SecretaryDashboard: React.FC = () => {
                             <label className="block text-sm font-bold text-gray-900 mb-1">Data de Nascimento <span className="text-red-600">*</span></label>
                             <div className="grid grid-cols-3 gap-2">
                                 <input 
-                                    type="date" 
+                                    type="text" 
                                     required
+                                    placeholder="DD/MM/AAAA"
                                     className="col-span-2 w-full p-2 border border-gray-400 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none font-medium"
                                     value={newStudentData.birthDate}
                                     onChange={handleBirthDateChange}
+                                    maxLength={10}
                                 />
                                 <div className="col-span-1">
                                     <input 
@@ -747,7 +785,7 @@ const SecretaryDashboard: React.FC = () => {
                                         disabled
                                         placeholder="Idade"
                                         className="w-full p-2 border border-gray-300 bg-gray-100 text-gray-900 rounded-lg text-center font-bold"
-                                        value={newStudentData.birthDate ? `${calculateAge(newStudentData.birthDate)} anos` : ''}
+                                        value={newStudentData.birthDate && newStudentData.birthDate.length === 10 ? `${calculateAgeFromBrDate(newStudentData.birthDate)} anos` : ''}
                                     />
                                 </div>
                             </div>

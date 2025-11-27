@@ -7,7 +7,7 @@ import SecretaryDashboard from './components/SecretaryDashboard';
 import AnalystDashboard from './components/AnalystDashboard';
 import CoordinatorDashboard from './components/CoordinatorDashboard';
 import UserProfileModal from './components/UserProfileModal';
-import { Menu, LogOut, LayoutDashboard, User as UserIcon, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, FileText, Phone, CheckCircle, UserCog } from 'lucide-react';
+import { Menu, LogOut, LayoutDashboard, User as UserIcon, ShieldCheck, Mail, Lock, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, FileText, Phone, CheckCircle, UserCog, Calendar } from 'lucide-react';
 
 const LoginScreen: React.FC = () => {
   const { login, addUser, users } = useApp();
@@ -37,15 +37,28 @@ const LoginScreen: React.FC = () => {
 
   // Helper to calculate age
   useEffect(() => {
-    if (regBirthDate) {
+    // Check if date is full dd/mm/yyyy (10 chars)
+    if (regBirthDate.length === 10) {
+      const [day, month, year] = regBirthDate.split('/').map(Number);
+      
+      // Basic validity check
+      if (day > 31 || month > 12 || year < 1900 || year > new Date().getFullYear()) {
+          return;
+      }
+
       const today = new Date();
-      const birth = new Date(regBirthDate);
+      // Note: Month in JS Date is 0-indexed
+      const birth = new Date(year, month - 1, day);
+      
       let age = today.getFullYear() - birth.getFullYear();
       const m = today.getMonth() - birth.getMonth();
+      
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
           age--;
       }
       setIsMinor(age < 18);
+    } else {
+        setIsMinor(false);
     }
   }, [regBirthDate]);
 
@@ -79,6 +92,17 @@ const LoginScreen: React.FC = () => {
     return v;
   };
 
+  const applyDateMask = (value: string) => {
+    let v = value.replace(/\D/g, ""); // Remove non-digits
+    v = v.slice(0, 8); // Limit to 8 digits
+    
+    // Apply formatting DD/MM/AAAA
+    v = v.replace(/(\d{2})(\d)/, "$1/$2");
+    v = v.replace(/(\d{2})(\d)/, "$1/$2");
+    
+    return v;
+  };
+
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -96,10 +120,18 @@ const LoginScreen: React.FC = () => {
         setError('Este e-mail já está cadastrado.');
         return;
     }
+    if (regBirthDate.length !== 10) {
+        setError('Data de nascimento inválida.');
+        return;
+    }
     if (isMinor && (!regGuardianName || !regGuardianCpf || !regGuardianPhone)) {
         setError('Para menores de 18 anos, os dados do responsável são obrigatórios.');
         return;
     }
+
+    // Convert BR Date (dd/mm/yyyy) to ISO (yyyy-mm-dd) for storage
+    const [day, month, year] = regBirthDate.split('/');
+    const isoBirthDate = `${year}-${month}-${day}`;
 
     // Create User
     const newUser: User = {
@@ -109,7 +141,7 @@ const LoginScreen: React.FC = () => {
         email: regEmail,
         password: regPassword,
         cpf: regCpf,
-        birthDate: regBirthDate,
+        birthDate: isoBirthDate,
         cellphone: regPhone,
         guardianName: isMinor ? regGuardianName : undefined,
         guardianCpf: isMinor ? regGuardianCpf : undefined,
@@ -201,12 +233,14 @@ const LoginScreen: React.FC = () => {
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">Data de Nascimento</label>
                         <div className="relative">
+                            <Calendar className="absolute left-3 top-2.5 text-gray-400" size={18} />
                             <input 
-                                type="date" 
+                                type="text" 
                                 required
                                 value={regBirthDate}
-                                onChange={e => setRegBirthDate(e.target.value)}
-                                className="w-full pl-3 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                onChange={e => setRegBirthDate(applyDateMask(e.target.value))}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-medium"
+                                placeholder="DD/MM/AAAA"
                             />
                         </div>
                     </div>

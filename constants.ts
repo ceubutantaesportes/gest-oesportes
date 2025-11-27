@@ -7,14 +7,19 @@ export const LOCATIONS = ['Ginásio', 'Tatame', 'Academia', 'Piscina', 'Sala de 
 // --- 1. Base Users (Roles Fixos) ---
 
 const ANALYSTS_DATA = [
-  { name: 'Alexandre Silva', email: 'alexandre.analista@ceu.sp.gov.br', ref: 'RF-00101' },
-  { name: 'Andrezza Santos', email: 'andrezza.analista@ceu.sp.gov.br', ref: 'RF-00102' },
-  { name: 'Fabiana Oliveira', email: 'fabiana.analista@ceu.sp.gov.br', ref: 'RF-00103' },
-  { name: 'Marcela Costa', email: 'marcela.analista@ceu.sp.gov.br', ref: 'RF-00104' },
-  { name: 'Sheila Ferreira', email: 'sheila.analista@ceu.sp.gov.br', ref: 'RF-00105' },
-  { name: 'Vanessa Lima', email: 'vanessa.analista@ceu.sp.gov.br', ref: 'RF-00106' },
-  { name: 'Wagner Souza', email: 'wagner.analista@ceu.sp.gov.br', ref: 'RF-00107' }
+  { name: 'Alexandre Greco Morgado Batista', email: 'alexandre.batista@sme.prefeitura.sp.gov.br', ref: '755.729.9/1', phone: '(11) 3732-4556', cellphone: '(11) 98218-1986' },
+  { name: 'Andrezza Pires de Alcantara', email: 'andrezza@sme.prefeitura.sp.gov.br', ref: '754.931.8/1', phone: '(11) 3732-4556', cellphone: '(11) 98202-5005' },
+  { name: 'Fabiana Amaral Ferreira', email: 'fabiana.analista@ceu.sp.gov.br', ref: '000.000.0/0', phone: '(11) 3732-4556', cellphone: '(11) 99999-0000' }, // Dados parciais mantidos/placeholder
+  { name: 'Marcela Massigli Simões', email: 'marcela.simoes@sme.prefeitura.sp.gov.br', ref: '744.137.1/1', phone: '(11) 3732-4556', cellphone: '(11) 98274-2008' },
+  { name: 'Sheila Silva Cantoni', email: 'sheilasil@sme.prefeitura.sp.gov.br', ref: '778.581.0/1', phone: '(11) 3732-4556', cellphone: '(11) 95028-6400' },
+  { name: 'Vanessa Burkhardt', email: 'vanessabu@sme.prefeitura.sp.gov.br', ref: '809.905.7/1', phone: '(11) 3732-4556', cellphone: '(11) 98572-7878' },
+  { name: 'Wagner Queiroz Amendola', email: 'wagnerq@sme.prefeitura.sp.gov.br', ref: '778.319.1/1', phone: '(11) 3732-4556', cellphone: '(11) 97773-5495' }
 ];
+
+const generateCPF = () => {
+  const n = () => Math.floor(Math.random() * 10);
+  return `${n()}${n()}${n()}.${n()}${n()}${n()}.${n()}${n()}${n()}.${n()}${n()}${n()}-${n()}${n()}`;
+};
 
 const ANALYSTS_USERS: User[] = ANALYSTS_DATA.map((a, i) => ({
   id: `u_an${i + 1}`,
@@ -23,8 +28,9 @@ const ANALYSTS_USERS: User[] = ANALYSTS_DATA.map((a, i) => ({
   password: '123456',
   role: UserRole.ANALYST,
   ref: a.ref,
-  phone: '(11) 3396-0000',
-  cellphone: `(11) 98888-${1000 + i}`
+  cpf: generateCPF(), // Gerando CPF pois não foi fornecido nos dados
+  phone: a.phone,
+  cellphone: a.cellphone
 }));
 
 const BASE_USERS: User[] = [
@@ -42,11 +48,6 @@ const FIRST_NAMES = ['Miguel', 'Arthur', 'Gael', 'Heitor', 'Helena', 'Alice', 'L
 const LAST_NAMES = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida', 'Lopes', 'Soares', 'Fernandes', 'Vieira', 'Barbosa', 'Rocha', 'Dias', 'Nascimento', 'Andrade', 'Moreira', 'Nunes', 'Marques'];
 const STREETS = ['Rua da Paz', 'Av. Vital Brasil', 'Rua Alvarenga', 'Av. Corifeu de Azevedo Marques', 'Rua Camargo', 'Rua Sapetuba', 'Av. Eliseu de Almeida'];
 const NEIGHBORHOODS = ['Butantã', 'Jardim Bonfiglioli', 'Vila Indiana', 'Rio Pequeno', 'Jardim Esmeralda'];
-
-const generateCPF = () => {
-  const n = () => Math.floor(Math.random() * 10);
-  return `${n()}${n()}${n()}.${n()}${n()}${n()}.${n()}${n()}${n()}.${n()}${n()}${n()}-${n()}${n()}`;
-};
 
 const generatePhone = () => {
     return `(11) 9${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`;
@@ -70,7 +71,8 @@ const calculateAge = (birthDate: string) => {
   return age;
 };
 
-const EXTRA_STUDENTS: User[] = Array.from({ length: 250 }, (_, i) => {
+// REDUZIDO DE 250 PARA 50 PARA EVITAR ESTOURO DO LOCALSTORAGE
+const EXTRA_STUDENTS: User[] = Array.from({ length: 50 }, (_, i) => {
   const firstName = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
   const lastName = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
   const secondLastName = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
@@ -114,7 +116,11 @@ export const MOCK_USERS: User[] = [...BASE_USERS, ...EXTRA_STUDENTS];
 // --- 3. Define Classes (Redistribuição de Espaços e Horários) ---
 // Espaços: 'Tatame', 'Sala de Dança', 'Piscina', 'Academia', 'Ginásio'
 
-const getAnalyst = (nameStart: string) => ANALYSTS_USERS.find(a => a.name.startsWith(nameStart))!;
+// Helper to find analyst case-insensitively
+const getAnalyst = (nameStart: string) => {
+  const analyst = ANALYSTS_USERS.find(a => a.name.toLowerCase().startsWith(nameStart.toLowerCase()));
+  return analyst || ANALYSTS_USERS[0]; // Fallback to first analyst if not found
+};
 
 const RAW_CLASSES: SportClass[] = [
   // Alexandre (Lutas) - Espaço: Tatame
