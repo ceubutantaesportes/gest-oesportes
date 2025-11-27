@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -749,61 +748,7 @@ const CoordinatorDashboard: React.FC = () => {
       {/* Navigation Cards Grid - Matching Secretary Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
-        <button 
-          onClick={() => setCurrentView('REQUESTS')}
-          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-yellow-300 transition-all text-left group"
-        >
-          <div className="bg-yellow-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-yellow-100 transition-colors">
-            <ClipboardCheck className="text-yellow-600" size={28} />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Solicitações</h3>
-          <p className="text-gray-800 text-sm">Aprovar turmas, vagas e alterações.</p>
-        </button>
-
-        <button 
-          onClick={() => setCurrentView('MANAGE_STUDENTS')}
-          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition-all text-left group"
-        >
-          <div className="bg-green-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
-            <GraduationCap className="text-green-600" size={28} />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Alunos</h3>
-          <p className="text-gray-800 text-sm">Cadastrar, editar e excluir alunos.</p>
-        </button>
-
-        <button 
-          onClick={() => setCurrentView('MANAGE_STAFF')}
-          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all text-left group"
-        >
-          <div className="bg-purple-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-100 transition-colors">
-            <Briefcase className="text-purple-600" size={28} />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Equipe</h3>
-          <p className="text-gray-800 text-sm">Gerenciar Analistas e Secretaria.</p>
-        </button>
-
-        <button 
-          onClick={() => setCurrentView('SPACE_MANAGEMENT')}
-          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-indigo-300 transition-all text-left group"
-        >
-          <div className="bg-indigo-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition-colors">
-            <LayoutTemplate className="text-indigo-600" size={28} />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Espaços</h3>
-          <p className="text-gray-800 text-sm">Visualizar ocupação de salas e ginásios.</p>
-        </button>
-
-        <button 
-          onClick={() => setCurrentView('WAITLIST')}
-          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all text-left group"
-        >
-          <div className="bg-orange-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
-            <AlertTriangle className="text-orange-600" size={28} />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Fila de Espera</h3>
-          <p className="text-gray-800 text-sm">Monitorar filas por turma.</p>
-        </button>
-
+        {/* Auditoria & Logs */}
         <button 
           onClick={() => setCurrentView('AUDIT')}
           className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all text-left group"
@@ -815,6 +760,67 @@ const CoordinatorDashboard: React.FC = () => {
           <p className="text-gray-800 text-sm">Histórico de ações no sistema.</p>
         </button>
 
+        {/* Fila de Espera */}
+        <button 
+          onClick={() => setCurrentView('WAITLIST')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all text-left group"
+        >
+          <div className="bg-orange-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+            <AlertTriangle className="text-orange-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Fila de Espera</h3>
+          <p className="text-gray-800 text-sm">Monitorar filas por turma.</p>
+        </button>
+
+        {/* Gestão de Alunos */}
+        <button 
+          onClick={() => setCurrentView('MANAGE_STUDENTS')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition-all text-left group"
+        >
+          <div className="bg-green-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
+            <GraduationCap className="text-green-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Alunos</h3>
+          <p className="text-gray-800 text-sm">Cadastrar, editar e excluir alunos.</p>
+        </button>
+
+        {/* Gestão de Equipe */}
+        <button 
+          onClick={() => setCurrentView('MANAGE_STAFF')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all text-left group"
+        >
+          <div className="bg-purple-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-100 transition-colors">
+            <Briefcase className="text-purple-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Equipe</h3>
+          <p className="text-gray-800 text-sm">Gerenciar Analistas e Secretaria.</p>
+        </button>
+
+        {/* Gestão de Espaços */}
+        <button 
+          onClick={() => setCurrentView('SPACE_MANAGEMENT')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-indigo-300 transition-all text-left group"
+        >
+          <div className="bg-indigo-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition-colors">
+            <LayoutTemplate className="text-indigo-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Espaços</h3>
+          <p className="text-gray-800 text-sm">Visualizar ocupação de salas e ginásios.</p>
+        </button>
+
+        {/* Gestão de Solicitações */}
+        <button 
+          onClick={() => setCurrentView('REQUESTS')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-yellow-300 transition-all text-left group"
+        >
+          <div className="bg-yellow-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-yellow-100 transition-colors">
+            <ClipboardCheck className="text-yellow-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Gestão de Solicitações</h3>
+          <p className="text-gray-800 text-sm">Aprovar turmas, vagas e alterações.</p>
+        </button>
+
+        {/* Relatórios e Gráficos */}
         <button 
           onClick={() => setCurrentView('OVERVIEW')}
           className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left group"

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, EnrollmentStatus, User } from '../types';
@@ -274,6 +273,20 @@ const SecretaryDashboard: React.FC = () => {
 
       {/* Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
+        
+        {/* Fila de Espera */}
+        <button 
+          onClick={() => setCurrentView('WAITLIST')}
+          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all text-left group"
+        >
+          <div className="bg-orange-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+            <AlertTriangle className="text-orange-600" size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Fila de Espera</h3>
+          <p className="text-gray-800 text-sm">Gerenciar alunos aguardando vagas.</p>
+        </button>
+
+        {/* Gestão de Alunos */}
         <button 
           onClick={() => setCurrentView('STUDENTS')}
           className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left group"
@@ -285,6 +298,7 @@ const SecretaryDashboard: React.FC = () => {
           <p className="text-gray-800 text-sm">Buscar alunos, cadastrar novos, realizar matrículas.</p>
         </button>
 
+        {/* Grade de Turmas */}
         <button 
           onClick={() => setCurrentView('CLASSES')}
           className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-purple-300 transition-all text-left group"
@@ -296,6 +310,7 @@ const SecretaryDashboard: React.FC = () => {
           <p className="text-gray-800 text-sm">Visualizar todas as turmas e horários.</p>
         </button>
 
+        {/* Quadro de Vagas */}
         <button 
           onClick={() => setCurrentView('VACANCIES')}
           className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition-all text-left group"
@@ -307,16 +322,6 @@ const SecretaryDashboard: React.FC = () => {
           <p className="text-gray-800 text-sm">Turmas com vagas abertas para matrícula imediata.</p>
         </button>
 
-        <button 
-          onClick={() => setCurrentView('WAITLIST')}
-          className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all text-left group"
-        >
-          <div className="bg-orange-50 w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
-            <AlertTriangle className="text-orange-600" size={28} />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Fila de Espera</h3>
-          <p className="text-gray-800 text-sm">Gerenciar alunos aguardando vagas.</p>
-        </button>
       </div>
     </div>
   );
