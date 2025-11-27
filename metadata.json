@@ -1,0 +1,5 @@
+{
+  "name": "Sistema CEUBT",
+  "description": "A comprehensive sports activity management system with role-based access for Students, Secretary, Analysts, and Coordinators.",
+  "requestFramePermissions": []
+}
