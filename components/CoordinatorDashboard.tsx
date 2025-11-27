@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -681,7 +680,8 @@ const CoordinatorDashboard: React.FC = () => {
                                     if (Array.isArray(value)) {
                                         displayValue = value.join(', ');
                                     } else if (key === 'createdAt' && typeof value === 'string') {
-                                        displayValue = new Date(value as any).toLocaleString('pt-BR');
+                                        // Fix: Cast to string explicitly to satisfy TS overload
+                                        displayValue = new Date(value as string).toLocaleString('pt-BR');
                                     }
 
                                     return (

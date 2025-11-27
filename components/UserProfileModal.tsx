@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { User, UserRole } from '../types';
-import { X, Save, Lock, User as UserIcon, Mail, Phone, MapPin, Home } from 'lucide-react';
+import { X, Save, Lock, User as UserIcon, Mail, Phone, MapPin, Home, Briefcase } from 'lucide-react';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
       setFormData({
         name: currentUser.name,
         email: currentUser.email,
+        ref: currentUser.ref || '',
         phone: currentUser.phone || '',
         cellphone: currentUser.cellphone || '',
         address: currentUser.address || '',
@@ -85,7 +86,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
         <div className="p-6 overflow-y-auto">
           <form id="profile-form" onSubmit={handleSave} className="space-y-6">
             
-            {/* Identity Section (Read-Only usually, but editable here based on requirements) */}
+            {/* Identity Section */}
             <div className="space-y-4">
               <h3 className="text-gray-900 font-bold border-b pb-2 flex items-center text-sm uppercase tracking-wide">
                 Dados Pessoais
@@ -104,6 +105,22 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                     />
                 </div>
               </div>
+
+              {/* REF Field - Only for non-students */}
+              {currentUser.role !== UserRole.STUDENT && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">REF (Registro Funcional)</label>
+                  <div className="relative">
+                      <Briefcase size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                      <input 
+                      type="text" 
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 bg-white"
+                      value={formData.ref || ''}
+                      onChange={e => setFormData({...formData, ref: e.target.value})}
+                      />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
