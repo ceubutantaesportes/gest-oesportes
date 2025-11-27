@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { EnrollmentStatus } from '../types';
-import { Calendar, Clock, MapPin, User as UserIcon, Filter, AlertCircle, CheckCircle, ArrowLeft, Info, Map } from 'lucide-react';
+import { Calendar, Clock, MapPin, User as UserIcon, Filter, AlertCircle, CheckCircle, ArrowLeft, Info, Map, Trash2, LogOut } from 'lucide-react';
 
 const StudentDashboard: React.FC = () => {
-  const { classes, enrollments, currentUser } = useApp();
+  const { classes, enrollments, currentUser, cancelEnrollment } = useApp();
   const [filter, setFilter] = useState('');
   
   // Persist selected class view in Local Storage
@@ -30,6 +30,16 @@ const StudentDashboard: React.FC = () => {
 
   // Derived state for the selected class
   const selectedClass = selectedClassId ? classes.find(c => c.id === selectedClassId) : null;
+
+  const handleCancelMyEnrollment = (enrollmentId: string) => {
+    if (window.confirm("Tem certeza que deseja cancelar sua inscrição nesta atividade?")) {
+        const result = cancelEnrollment(enrollmentId);
+        if (result.success) {
+            alert("Inscrição cancelada com sucesso.");
+            // Opcional: Voltar para a lista ou manter na tela atualizada
+        }
+    }
+  };
 
   // --- DETAIL VIEW ---
   if (selectedClass) {
@@ -164,9 +174,17 @@ const StudentDashboard: React.FC = () => {
                   </div>
 
                   <div className="mt-6 pt-6 border-t">
-                    {isEnrolled ? (
-                      <div className="text-center p-3 bg-gray-100 text-gray-700 rounded-lg font-bold cursor-not-allowed">
-                        Você já está inscrito nesta atividade.
+                    {isEnrolled && enrollment ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex flex-col items-center">
+                          <div className="flex items-center text-green-800 font-bold mb-3 text-sm">
+                             <CheckCircle className="mr-2" size={18} /> Você está inscrito!
+                          </div>
+                          <button 
+                             onClick={() => handleCancelMyEnrollment(enrollment.id)}
+                             className="text-red-600 hover:text-red-800 text-xs font-bold hover:underline bg-white px-4 py-2 rounded-full border border-red-200 shadow-sm flex items-center transition-colors hover:bg-red-50"
+                          >
+                             <LogOut size={14} className="mr-1" /> Cancelar/Sair da Turma
+                          </button>
                       </div>
                     ) : (
                       <div className="text-center">
@@ -244,13 +262,22 @@ const StudentDashboard: React.FC = () => {
                     <p className="flex items-center"><Clock size={14} className="mr-2 text-gray-400" /> {classInfo.days.join('/')} • {classInfo.time}</p>
                     <p className="flex items-center"><MapPin size={14} className="mr-2 text-gray-400" /> {classInfo.location}</p>
                   </div>
-                  <button 
-                    onClick={() => setSelectedClassId(classInfo.id)}
-                    className="text-blue-600 text-sm font-bold hover:underline flex items-center"
-                    type="button"
-                  >
-                    Ver detalhes <ArrowLeft size={14} className="ml-1 rotate-180" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                        onClick={() => setSelectedClassId(classInfo.id)}
+                        className="text-blue-600 text-sm font-bold hover:underline flex items-center flex-1"
+                        type="button"
+                    >
+                        Ver detalhes
+                    </button>
+                    <button
+                        onClick={() => handleCancelMyEnrollment(enrollment.id)}
+                        className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                        title="Cancelar Matrícula"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               );
             })}

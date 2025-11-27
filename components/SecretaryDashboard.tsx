@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, EnrollmentStatus, User } from '../types';
@@ -8,9 +9,11 @@ type SecretaryView = 'MENU' | 'STUDENTS' | 'CLASSES' | 'VACANCIES' | 'WAITLIST' 
 const SecretaryDashboard: React.FC = () => {
   const { users, classes, enrollments, enrollStudent, cancelEnrollment, addUser, updateUser, deleteUser } = useApp();
   
-  // Persist Current View in Local Storage
+  // Persist Current View in Local Storage with Validation
   const [currentView, setCurrentView] = useState<SecretaryView>(() => {
-    return (localStorage.getItem('sec_dashboard_view') as SecretaryView) || 'MENU';
+    const saved = localStorage.getItem('sec_dashboard_view');
+    const validViews = ['MENU', 'STUDENTS', 'CLASSES', 'VACANCIES', 'WAITLIST', 'CLASS_DETAILS'];
+    return (saved && validViews.includes(saved)) ? (saved as SecretaryView) : 'MENU';
   });
 
   useEffect(() => {
@@ -123,7 +126,10 @@ const SecretaryDashboard: React.FC = () => {
       }
   };
 
-  const handleCancelEnrollment = (enrollmentId: string) => {
+  const handleCancelEnrollment = (e: React.MouseEvent, enrollmentId: string) => {
+      e.stopPropagation(); // Prevent bubble up
+      e.preventDefault(); 
+      
       if(window.confirm("Tem certeza que deseja cancelar esta matrícula?")) {
         const result = cancelEnrollment(enrollmentId);
         
@@ -448,7 +454,23 @@ const SecretaryDashboard: React.FC = () => {
 
   const renderClassDetails = () => {
       const targetClass = classes.find(c => c.id === viewingClassManagementId);
-      if (!targetClass) return <div>Turma não encontrada</div>;
+      
+      // FALLBACK SE NÃO ENCONTRAR TURMA (EVITA TELA BRANCA AO DAR REFRESH)
+      if (!targetClass) {
+          return (
+             <div className="text-center p-12 bg-white rounded-lg border border-dashed border-gray-300">
+                 <AlertCircle className="mx-auto text-gray-400 mb-4" size={48} />
+                 <h2 className="text-xl font-bold text-gray-900 mb-2">Turma não selecionada</h2>
+                 <p className="text-gray-600 mb-6">Por favor, selecione uma turma na grade para gerenciar.</p>
+                 <button 
+                    onClick={() => setCurrentView('CLASSES')}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700"
+                 >
+                    Voltar para Grade
+                 </button>
+             </div>
+          );
+      }
 
       const enrolledStudents = enrollments
           .filter(e => e.classId === viewingClassManagementId)
@@ -574,12 +596,12 @@ const SecretaryDashboard: React.FC = () => {
                                           </td>
                                           <td className="px-6 py-4 text-center">
                                               <button 
-                                                onClick={() => handleCancelEnrollment(item.id)}
+                                                onClick={(e) => handleCancelEnrollment(e, item.id)}
                                                 type="button"
                                                 className="text-red-600 hover:bg-red-50 p-2 rounded transition-colors"
                                                 title="Cancelar Matrícula"
                                               >
-                                                  <Trash2 size={18} />
+                                                  <Trash2 size={18} className="pointer-events-none" />
                                               </button>
                                           </td>
                                       </tr>
@@ -790,7 +812,8 @@ const SecretaryDashboard: React.FC = () => {
                             <td className="px-4 py-3 font-medium">{new Date(enrollment.date).toLocaleDateString('pt-BR')}</td>
                             <td className="px-4 py-3 text-right">
                               <button 
-                                onClick={() => handleCancelEnrollment(enrollment.id)}
+                                onClick={(e) => handleCancelEnrollment(e, enrollment.id)}
+                                type="button"
                                 className="text-red-700 hover:text-red-900 text-xs font-bold border border-red-300 px-3 py-1 rounded hover:bg-red-50"
                               >
                                 Cancelar
@@ -1333,6 +1356,9 @@ const SecretaryDashboard: React.FC = () => {
       {currentView === 'VACANCIES' && renderVacancies()}
       {currentView === 'WAITLIST' && renderWaitlistPanel()}
       {currentView === 'CLASS_DETAILS' && renderClassDetails()}
+      
+      {/* Fallback para garantir que o menu sempre apareça */}
+      {!['MENU', 'STUDENTS', 'CLASSES', 'VACANCIES', 'WAITLIST', 'CLASS_DETAILS'].includes(currentView) && renderMenu()}
     </div>
   );
 };
